@@ -10,6 +10,9 @@ import {
     MultiFormatReader,
     NotFoundException,
 } from '@zxing/library'
+import { Camera, PenLine, Eye, Check } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 // ---------------------------------------------------------------------------
 // We use MultiFormatReader (core) NOT BrowserMultiFormatReader/BrowserCodeReader.
@@ -273,57 +276,41 @@ export default function Scanner( {onScan, disabled = false}: ScannerProps ) {
 
             {/* Mode + debug toggles */}
             <div className="flex flex-wrap gap-2 items-center">
-                <button
+                <Button
                     type="button"
+                    size="sm"
+                    variant={mode === 'camera' ? 'default' : 'secondary'}
                     onClick={() => {
                         setMode('camera')
                         setCameraError(null)
                     }}
                     disabled={disabled}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                        mode === 'camera' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                    }`}
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                         stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round"
-                              d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-                        <circle cx="12" cy="13" r="3"/>
-                    </svg>
+                    <Camera className="h-4 w-4"/>
                     Camera
-                </button>
-                <button
+                </Button>
+                <Button
                     type="button"
+                    size="sm"
+                    variant={mode === 'manual' ? 'default' : 'secondary'}
                     onClick={() => setMode('manual')}
                     disabled={disabled}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                        mode === 'manual' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                    }`}
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                         stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round"
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                    </svg>
+                    <PenLine className="h-4 w-4"/>
                     Manual / USB
-                </button>
+                </Button>
 
                 {mode === 'camera' && (
-                    <button
+                    <Button
                         type="button"
+                        size="sm"
                         onClick={() => setDebugMode(d => !d)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ml-auto ${
-                            debugMode ? 'bg-amber-500 text-slate-900' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
-                        }`}
+                        className={`ml-auto ${debugMode ? 'bg-amber-500 text-slate-900 hover:bg-amber-400' : ''}`}
+                        variant={debugMode ? 'outline' : 'secondary'}
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                             stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            <path strokeLinecap="round" strokeLinejoin="round"
-                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
+                        <Eye className="h-4 w-4"/>
                         {debugMode ? 'Debug ON' : 'Debug'}
-                    </button>
+                    </Button>
                 )}
             </div>
 
@@ -331,7 +318,7 @@ export default function Scanner( {onScan, disabled = false}: ScannerProps ) {
             {mode === 'camera' && (
                 <div className="space-y-2 max-w-lg">
                     <div
-                        className="relative rounded-xl overflow-hidden bg-slate-900 border border-slate-700 aspect-video">
+                        className="relative rounded-xl overflow-hidden bg-background border border-border aspect-video">
                         {cameraError ? (
                             <div
                                 className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
@@ -398,7 +385,7 @@ export default function Scanner( {onScan, disabled = false}: ScannerProps ) {
                                     )}
                                     {scanning && (
                                         <div
-                                            className="flex items-center gap-1.5 bg-slate-900/70 px-2 py-1 rounded-full">
+                                            className="flex items-center gap-1.5 bg-background/70 px-2 py-1 rounded-full">
                                             <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse"/>
                                             <span className="text-xs text-green-400">Scanning…</span>
                                         </div>
@@ -410,7 +397,7 @@ export default function Scanner( {onScan, disabled = false}: ScannerProps ) {
 
                     {/* Debug controls */}
                     {debugMode && (
-                        <div className="rounded-lg bg-slate-800/60 border border-slate-700 p-3 space-y-2">
+                        <div className="rounded-lg bg-card border border-border p-3 space-y-2">
                             <p className="text-xs text-amber-400 font-medium">
                                 Previewing pass {debugPass + 1}/{PASSES.length}: <span
                                 className="font-mono">{PASSES[debugPass].label}</span>
@@ -426,14 +413,14 @@ export default function Scanner( {onScan, disabled = false}: ScannerProps ) {
                                         className={`px-2 py-0.5 rounded text-xs font-mono transition-colors ${
                                             i === debugPass
                                                 ? 'bg-amber-500 text-slate-900'
-                                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                                : 'bg-secondary text-slate-300 hover:bg-slate-600'
                                         }`}
                                     >
                                         {p.label}
                                     </button>
                                 ))}
                             </div>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-muted-foreground">
                                 The scanner tries all passes in order each frame and stops at the first success.
                                 Use the buttons to preview what each pass looks like. The winning pass is shown in the
                                 badge above.
@@ -446,29 +433,25 @@ export default function Scanner( {onScan, disabled = false}: ScannerProps ) {
             {/* Manual / USB input */}
             {mode === 'manual' && (
                 <form onSubmit={handleManualSubmit} className="flex gap-2 max-w-lg">
-                    <input
+                    <Input
                         type="text"
                         value={manualInput}
                         onChange={( e ) => setManualInput(e.target.value)}
                         placeholder="Scan QR code or type part no…"
                         autoFocus
                         disabled={disabled}
-                        className="input-field flex-1"
+                        className="flex-1"
                     />
-                    <button type="submit" disabled={disabled || !manualInput.trim()}
-                            className="btn-primary flex-shrink-0">
+                    <Button type="submit" disabled={disabled || !manualInput.trim()} className="flex-shrink-0">
                         Submit
-                    </button>
+                    </Button>
                 </form>
             )}
 
             {/* Last scan feedback */}
             {lastScan && (
                 <div className="flex items-center gap-2 text-sm text-emerald-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none"
-                         viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
-                    </svg>
+                    <Check className="h-4 w-4 flex-shrink-0"/>
                     <span>Last scan: <code className="font-mono">{lastScan}</code></span>
                 </div>
             )}

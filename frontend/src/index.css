@@ -3,8 +3,41 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Dark theme matching current slate/blue palette */
+    --background: 222.2 47.4% 11.2%;       /* slate-900 */
+    --foreground: 210 40% 96.1%;            /* slate-100 */
+
+    --card: 217.2 32.6% 17.5%;             /* slate-800 */
+    --card-foreground: 210 40% 96.1%;       /* slate-100 */
+
+    --popover: 217.2 32.6% 17.5%;          /* slate-800 */
+    --popover-foreground: 210 40% 96.1%;    /* slate-100 */
+
+    --primary: 221.2 83.2% 53.3%;          /* blue-600 */
+    --primary-foreground: 0 0% 100%;        /* white */
+
+    --secondary: 215.3 25% 26.7%;          /* slate-700 */
+    --secondary-foreground: 210 40% 96.1%; /* slate-100 */
+
+    --muted: 215.3 25% 26.7%;              /* slate-700 */
+    --muted-foreground: 215 20.2% 65.1%;   /* slate-400 */
+
+    --accent: 215.3 25% 26.7%;             /* slate-700 */
+    --accent-foreground: 210 40% 96.1%;    /* slate-100 */
+
+    --destructive: 0 72.2% 50.6%;          /* red-600 */
+    --destructive-foreground: 0 0% 100%;   /* white */
+
+    --border: 215.3 25% 26.7%;             /* slate-700 */
+    --input: 215.3 25% 26.7%;              /* slate-700 */
+    --ring: 221.2 83.2% 53.3%;             /* blue-600 */
+
+    --radius: 0.5rem;
+  }
+
   body {
-    @apply bg-slate-900 text-slate-100;
+    @apply bg-background text-foreground;
   }
 
   /* Scrollbar styling for dark theme */
@@ -19,36 +52,5 @@
   }
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-slate-500;
-  }
-}
-
-@layer components {
-  .btn-primary {
-    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800
-           text-white font-medium text-sm transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-secondary {
-    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 active:bg-slate-500
-           text-slate-100 font-medium text-sm transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-danger {
-    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 active:bg-red-800
-           text-white font-medium text-sm transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .input-field {
-    @apply w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-slate-100
-           placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-           transition-colors duration-150;
-  }
-
-  .card {
-    @apply bg-slate-800 rounded-xl border border-slate-700 shadow-lg;
-  }
-
-  .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
 }
