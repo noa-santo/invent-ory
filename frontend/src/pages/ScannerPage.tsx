@@ -4,6 +4,8 @@ import ComponentModal from '../components/ComponentModal'
 import { parseScanData } from '../services/lcsc'
 import * as api from '../services/api'
 import type { Box, InventoryItem } from '../types'
+import { Card, CardContent } from '@/components/ui/card'
+import { Loader2, AlertCircle, Check, X, AlertTriangle } from 'lucide-react'
 
 type ScanStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -140,7 +142,7 @@ export default function ScannerPage() {
             {/* Page heading */}
             <div>
                 <h1 className="text-2xl font-bold text-slate-100">Scanner</h1>
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="mt-1 text-sm text-muted-foreground">
                     Point your camera at a barcode or scan with a USB scanner to look up
                     a component.
                 </p>
@@ -158,24 +160,13 @@ export default function ScannerPage() {
                     }`}
                 >
                     {scanState.status === 'loading' && (
-                        <svg className="h-4 w-4 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                    strokeWidth="4"/>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                        </svg>
+                        <Loader2 className="h-4 w-4 animate-spin flex-shrink-0"/>
                     )}
                     {scanState.status === 'error' && (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none"
-                             viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round"
-                                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
+                        <AlertCircle className="h-4 w-4 flex-shrink-0"/>
                     )}
                     {scanState.status === 'success' && (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none"
-                             viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
-                        </svg>
+                        <Check className="h-4 w-4 flex-shrink-0"/>
                     )}
                     <span>{scanState.message}</span>
                     {scanState.status !== 'loading' && (
@@ -185,10 +176,7 @@ export default function ScannerPage() {
                             className="ml-auto text-current opacity-60 hover:opacity-100 transition-opacity"
                             aria-label="Dismiss"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                                 stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
+                            <X className="h-4 w-4"/>
                         </button>
                     )}
                 </div>
@@ -196,46 +184,45 @@ export default function ScannerPage() {
 
             {/* Boxes warning */}
             {!boxesLoading && boxes.length === 0 && (
-                <div
-                    className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm bg-amber-900/30 text-amber-300 border border-amber-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none"
-                         viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round"
-                              d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                    </svg>
+                <div className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm bg-amber-900/30 text-amber-300 border border-amber-700">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0"/>
                     No boxes found. Create a box first so you can assign scanned parts.
                 </div>
             )}
 
             {/* Scanner component */}
-            <div className="card p-5">
-                <Scanner
-                    onScan={handleScan}
-                    disabled={scanState.status === 'loading'}
-                />
-            </div>
+            <Card>
+                <CardContent className="p-5">
+                    <Scanner
+                        onScan={handleScan}
+                        disabled={scanState.status === 'loading'}
+                    />
+                </CardContent>
+            </Card>
 
             {/* Tips */}
-            <div className="card p-5">
-                <h2 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">
-                    Tips
-                </h2>
-                <ul className="space-y-2 text-sm text-slate-400">
-                    <li className="flex items-start gap-2">
-                        <span className="text-blue-400 mt-0.5">•</span>
-                        LCSC part numbers start with <code className="text-slate-200">C</code> followed by digits
-                        (e.g. <code className="text-slate-200">C14663</code>).
-                    </li>
-                    <li className="flex items-start gap-2">
-                        <span className="text-blue-400 mt-0.5">•</span>
-                        Reel barcodes may include quantity: <code className="text-slate-200">C14663,100,…</code>
-                    </li>
-                    <li className="flex items-start gap-2">
-                        <span className="text-blue-400 mt-0.5">•</span>
-                        USB barcode scanners work in Manual mode — click the field and scan.
-                    </li>
-                </ul>
-            </div>
+            <Card>
+                <CardContent className="p-5">
+                    <h2 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">
+                        Tips
+                    </h2>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li className="flex items-start gap-2">
+                            <span className="text-blue-400 mt-0.5">•</span>
+                            LCSC part numbers start with <code className="text-slate-200">C</code> followed by digits
+                            (e.g. <code className="text-slate-200">C14663</code>).
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <span className="text-blue-400 mt-0.5">•</span>
+                            Reel barcodes may include quantity: <code className="text-slate-200">C14663,100,…</code>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <span className="text-blue-400 mt-0.5">•</span>
+                            USB barcode scanners work in Manual mode — click the field and scan.
+                        </li>
+                    </ul>
+                </CardContent>
+            </Card>
 
             {/* Modal */}
             {modalOpen && scanState.item && (

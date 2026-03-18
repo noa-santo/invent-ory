@@ -1,51 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import { ScanLine, ClipboardList, Package, Cpu } from 'lucide-react'
 
-// ── Icon components ───────────────────────────────────────────────────────────
-
-function ScanIcon() {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24"
-             stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round"
-                  d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
-            <line x1="7" y1="12" x2="17" y2="12" strokeWidth={2} strokeLinecap="round"/>
-        </svg>
-    )
-}
-
-function InventoryIcon() {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24"
-             stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round"
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
-            <rect x="9" y="3" width="6" height="4" rx="1" ry="1"/>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6M9 16h4"/>
-        </svg>
-    )
-}
-
-function BoxesIcon() {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24"
-             stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round"
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/>
-        </svg>
-    )
-}
-
-function CircuitIcon() {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24"
-             stroke="currentColor" strokeWidth={1.5}>
-            <rect x="9" y="9" width="6" height="6" rx="1"/>
-            <path strokeLinecap="round" d="M3 12h3M18 12h3M12 3v3M12 18v3"/>
-            <path strokeLinecap="round" d="M6 6l1.5 1.5M16.5 16.5L18 18M18 6l-1.5 1.5M7.5 16.5L6 18"/>
-        </svg>
-    )
-}
+// ── Brand name ────────────────────────────────────────────────────────────────
 
 interface BrandNameProps {
     className?: string;
@@ -89,9 +46,9 @@ interface NavItemProps {
 function NavItem( {to, icon, label}: NavItemProps ) {
     const baseClass =
         'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 group'
-    const activeClass = 'bg-blue-600 text-white'
+    const activeClass = 'bg-primary text-primary-foreground'
     const inactiveClass =
-        'text-slate-400 hover:bg-slate-700 hover:text-slate-100'
+        'text-slate-400 hover:bg-secondary hover:text-slate-100'
 
     return (
         <NavLink
@@ -135,18 +92,18 @@ interface LayoutProps {
 
 export default function Layout( {children}: LayoutProps ) {
     const navLinks: NavItemProps[] = [
-        {to: '/', icon: <ScanIcon/>, label: 'Scanner'},
-        {to: '/inventory', icon: <InventoryIcon/>, label: 'Inventory'},
-        {to: '/boxes', icon: <BoxesIcon/>, label: 'Boxes'},
+        {to: '/', icon: <ScanLine className="h-5 w-5"/>, label: 'Scanner'},
+        {to: '/inventory', icon: <ClipboardList className="h-5 w-5"/>, label: 'Inventory'},
+        {to: '/boxes', icon: <Package className="h-5 w-5"/>, label: 'Boxes'},
     ]
 
     return (
-        <div className="flex h-screen overflow-hidden bg-slate-900">
+        <div className="flex h-screen overflow-hidden bg-background">
             {/* ── Desktop Sidebar ── */}
-            <aside className="hidden md:flex flex-col w-56 flex-shrink-0 bg-slate-800 border-r border-slate-700">
+            <aside className="hidden md:flex flex-col w-56 flex-shrink-0 bg-card border-r border-border">
                 {/* Logo */}
-                <div className="flex items-center gap-2.5 px-4 py-5 border-b border-slate-700">
-                    <CircuitIcon/>
+                <div className="flex items-center gap-2.5 px-4 py-5 border-b border-border">
+                    <Cpu className="h-6 w-6 text-blue-400" strokeWidth={1.5}/>
                     <BrandName className="text-[32px] text-slate-100"/>
                 </div>
 
@@ -158,7 +115,7 @@ export default function Layout( {children}: LayoutProps ) {
                 </nav>
 
                 {/* Footer */}
-                <div className="px-4 py-3 border-t border-slate-700">
+                <div className="px-4 py-3 border-t border-border">
                     <p className="text-xs text-slate-500">PCB Component Inventory</p>
                 </div>
             </aside>
@@ -167,8 +124,8 @@ export default function Layout( {children}: LayoutProps ) {
             <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
                 {/* Mobile header */}
                 <header
-                    className="md:hidden flex items-center gap-2 px-4 py-3 bg-slate-800 border-b border-slate-700 flex-shrink-0">
-                    <CircuitIcon/>
+                    className="md:hidden flex items-center gap-2 px-4 py-3 bg-card border-b border-border flex-shrink-0">
+                    <Cpu className="h-6 w-6 text-blue-400" strokeWidth={1.5}/>
                     <BrandName className="text-2xl text-slate-100"/>
                 </header>
 
@@ -179,7 +136,7 @@ export default function Layout( {children}: LayoutProps ) {
 
                 {/* ── Mobile Bottom Nav ── */}
                 <nav
-                    className="md:hidden flex items-center justify-around bg-slate-800 border-t border-slate-700 flex-shrink-0 pb-safe">
+                    className="md:hidden flex items-center justify-around bg-card border-t border-border flex-shrink-0 pb-safe">
                     {navLinks.map(( link ) => (
                         <MobileNavItem key={link.to} {...link} />
                     ))}

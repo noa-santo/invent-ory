@@ -1,5 +1,22 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Box, InventoryItem } from "../types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ComponentModalProps {
   item: InventoryItem | null;
@@ -34,16 +51,11 @@ export default function ComponentModal({
 }: ComponentModalProps) {
   const [quantity, setQuantity] = useState<number>(item?.quantity ?? 1);
   const [boxId, setBoxId] = useState<number>(item?.box_id ?? boxes[0]?.id ?? 0);
-  const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setQuantity(item?.quantity ?? 1);
     setBoxId(item?.box_id ?? boxes[0]?.id ?? 0);
   }, [item, boxes]);
-
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === backdropRef.current) onClose();
-  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,37 +65,20 @@ export default function ComponentModal({
   const component = item?.component;
 
   return (
-    <div
-      ref={backdropRef}
-      onClick={handleBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-    >
-      <div className="card w-full max-w-lg shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-100">
-              {isNew ? "Add to Inventory" : "Edit Inventory Item"}
-            </h2>
-            {component && (
-              <p className="text-sm text-slate-400 mt-0.5">{component.lcsc_part_no}</p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
-            aria-label="Close"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg p-0 gap-0">
+        <DialogHeader>
+          <DialogTitle>
+            {isNew ? "Add to Inventory" : "Edit Inventory Item"}
+          </DialogTitle>
+          {component && (
+            <DialogDescription>{component.lcsc_part_no}</DialogDescription>
+          )}
+        </DialogHeader>
 
         {/* Read-only component details */}
         {component && (
-          <dl className="px-6 py-4 border-b border-slate-700 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <dl className="px-6 py-4 border-b border-border grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
             <DetailRow label="Name" value={component.name} />
             <DetailRow label="Value" value={component.value} />
             <DetailRow label="Manufacturer" value={component.manufacturer} />
@@ -96,60 +91,53 @@ export default function ComponentModal({
 
         {/* Editable fields */}
         <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
-          <div>
-            <label htmlFor="modal-qty" className="block text-sm font-medium text-slate-300 mb-1.5">
-              Quantity
-            </label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="modal-qty">Quantity</Label>
+            <Input
               id="modal-qty"
               type="number"
               min={0}
               value={quantity}
               onChange={(e) => setQuantity(Number(e.target.value))}
-              className="input-field"
               required
             />
           </div>
 
-          <div>
-            <label htmlFor="modal-box" className="block text-sm font-medium text-slate-300 mb-1.5">
-              Box
-            </label>
+          <div className="space-y-1.5">
+            <Label htmlFor="modal-box">Box</Label>
             {boxes.length === 0 ? (
-              <p className="text-sm text-slate-500 italic">
+              <p className="text-sm text-muted-foreground italic">
                 No boxes available. Create a box first.
               </p>
             ) : (
-              <select
-                id="modal-box"
-                value={boxId}
-                onChange={(e) => setBoxId(Number(e.target.value))}
-                className="input-field"
-                required
+              <Select
+                value={String(boxId)}
+                onValueChange={(val) => setBoxId(Number(val))}
               >
-                {boxes.map((box) => (
-                  <option key={box.id} value={box.id}>
-                    {box.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="modal-box">
+                  <SelectValue placeholder="Select a box" />
+                </SelectTrigger>
+                <SelectContent>
+                  {boxes.map((box) => (
+                    <SelectItem key={box.id} value={String(box.id)}>
+                      {box.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary">
+            <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={boxes.length === 0}
-              className="btn-primary"
-            >
+            </Button>
+            <Button type="submit" disabled={boxes.length === 0}>
               {isNew ? "Add to Inventory" : "Save Changes"}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
