@@ -142,6 +142,7 @@ export default function BoxesPage() {
                 onChange={(e) => setNewDesc(e.target.value)}
                 placeholder="Optional description…"
                 rows={2}
+                className="resize-none"
               />
             </div>
             <div className="flex gap-2">
