@@ -1,0 +1,23 @@
+[package]
+name = "invent-ory"
+version = "0.1.0"
+description = "PCB Component Inventory App"
+authors = ["you"]
+license = ""
+repository = ""
+default-run = "invent-ory"
+edition = "2021"
+rust-version = "1.60"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+tauri = { version = "1.6", features = ["shell-open"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+# This feature is used for production builds or when `devPath` points to the filesystem
+# DO NOT REMOVE!!
+custom-protocol = ["tauri/custom-protocol"]
