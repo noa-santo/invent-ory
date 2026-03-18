@@ -138,10 +138,13 @@ export function upsertByLCSC(
     lcscPartNo: string,
     quantity: number,
     boxId: number,
+    componentData?: Partial<import('../types').LCSCLookupResult>,
 ): Promise<InventoryItem> {
+    const body: any = {lcsc_part_no: lcscPartNo, quantity, box_id: boxId}
+    if (componentData) body.component = componentData
     return request<InventoryItem>('/inventory/upsert-by-lcsc', {
         method: 'POST',
-        body: JSON.stringify({lcsc_part_no: lcscPartNo, quantity, box_id: boxId}),
+        body: JSON.stringify(body),
     })
 }
 

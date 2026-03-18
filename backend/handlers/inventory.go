@@ -116,6 +116,14 @@ type upsertRequest struct {
 	BoxID      uint   `json:"box_id" binding:"required"`
 	// Quantity must be >= 0; negative values are rejected.
 	Quantity int `json:"quantity" binding:"min=0"`
+	// Optional component data to populate or update the Component record
+	Component *struct {
+		Name         string `json:"name"`
+		Value        string `json:"value"`
+		Footprint    string `json:"footprint"`
+		Description  string `json:"description"`
+		Manufacturer string `json:"manufacturer"`
+	} `json:"component"`
 }
 
 // UpsertByLCSC finds or creates an inventory item for the given LCSC part number and box.
@@ -138,6 +146,37 @@ func UpsertByLCSC(c *gin.Context) {
 			"message": "failed to find or create component",
 		})
 		return
+	}
+
+	// If optional component data provided, update the component fields (non-empty values only)
+	if req.Component != nil {
+		updated := false
+		if req.Component.Name != "" {
+			component.Name = req.Component.Name
+			updated = true
+		}
+		if req.Component.Value != "" {
+			component.Value = req.Component.Value
+			updated = true
+		}
+		if req.Component.Footprint != "" {
+			component.Footprint = req.Component.Footprint
+			updated = true
+		}
+		if req.Component.Description != "" {
+			component.Description = req.Component.Description
+			updated = true
+		}
+		if req.Component.Manufacturer != "" {
+			component.Manufacturer = req.Component.Manufacturer
+			updated = true
+		}
+		if updated {
+			if saveRes := database.DB.Save(&component); saveRes.Error != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": saveRes.Error.Error(), "message": "failed to update component"})
+				return
+			}
+		}
 	}
 
 	// Verify the box exists
