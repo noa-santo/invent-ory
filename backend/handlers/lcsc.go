@@ -51,6 +51,70 @@ type lcscAPIResponse struct {
 //   - Comma-separated reel format:   "C123456,100,..."
 func parseScanData(raw string) (partNo string, quantity int) {
 	raw = strings.TrimSpace(raw)
+
+	// Try to parse key:value style payloads like:
+	// {pbn:PICK...,on:WM...,pc:C2913206,pm:ESP32...,qty:3,...}
+	// or JSON-like: {"pc":"C2913206","qty":3}
+	// Look for pc:<value> and qty:<num>
+	lower := strings.ToLower(raw)
+	// Find "pc:" occurrence and extract token following it until a delimiter
+	if idx := strings.Index(lower, "pc:"); idx != -1 {
+		// extract following substring from original raw to preserve case
+		sub := raw[idx+3:]
+		// trim leading spaces and any braces/quotes
+		sub = strings.TrimLeft(sub, " \t\n\r{\"'")
+		// token ends at comma, brace, or whitespace
+		tokEnd := len(sub)
+		for i, ch := range sub {
+			if ch == ',' || ch == '}' || ch == '\n' || ch == '\r' || ch == ' ' || ch == '\t' {
+				tokEnd = i
+				break
+			}
+		}
+		if tokEnd > 0 {
+			partNo = strings.TrimSpace(sub[:tokEnd])
+			// remove surrounding quotes if any
+			partNo = strings.Trim(partNo, "\"'")
+		}
+
+		// quantity
+		if qidx := strings.Index(lower, "qty:"); qidx != -1 {
+			subq := lower[qidx+4:]
+			subq = strings.TrimLeft(subq, " \t\n\r{\"'")
+			qEnd := len(subq)
+			for i, ch := range subq {
+				if ch == ',' || ch == '}' || ch == '\n' || ch == '\r' || ch == ' ' || ch == '\t' {
+					qEnd = i
+					break
+				}
+			}
+			if qEnd > 0 {
+				qstr := strings.TrimSpace(subq[:qEnd])
+				qstr = strings.Trim(qstr, "\"'")
+				fmt.Sscanf(qstr, "%d", &quantity)
+			}
+		}
+		// Normalize partNo (extract C+digits if present)
+		if partNo != "" {
+			// try to extract C+digits
+			for i := 0; i < len(partNo); i++ {
+				if (partNo[i] == 'C' || partNo[i] == 'c') && i+1 < len(partNo) {
+					// capture subsequent digits
+					j := i + 1
+					for j < len(partNo) && partNo[j] >= '0' && partNo[j] <= '9' {
+						j++
+					}
+					if j > i+1 {
+						partNo = strings.ToUpper(partNo[i:j])
+						break
+					}
+				}
+			}
+		}
+		return partNo, quantity
+	}
+
+	// Existing behaviour: comma-separated formats (e.g. "C123456,100,...")
 	parts := strings.Split(raw, ",")
 
 	partNo = strings.TrimSpace(parts[0])
