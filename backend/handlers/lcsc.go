@@ -49,6 +49,7 @@ type lcscAPIResponse struct {
 // Supported formats:
 //   - Plain part number:              "C123456"
 //   - Comma-separated reel format:   "C123456,100,..."
+//   - Key:value format:              "{pbn:PICK...,on:WM...,pc:C2913206,pm:ESP32...,qty:3,...}"
 func parseScanData(raw string) (partNo string, quantity int) {
 	raw = strings.TrimSpace(raw)
 
@@ -57,13 +58,9 @@ func parseScanData(raw string) (partNo string, quantity int) {
 	// or JSON-like: {"pc":"C2913206","qty":3}
 	// Look for pc:<value> and qty:<num>
 	lower := strings.ToLower(raw)
-	// Find "pc:" occurrence and extract token following it until a delimiter
 	if idx := strings.Index(lower, "pc:"); idx != -1 {
-		// extract following substring from original raw to preserve case
 		sub := raw[idx+3:]
-		// trim leading spaces and any braces/quotes
 		sub = strings.TrimLeft(sub, " \t\n\r{\"'")
-		// token ends at comma, brace, or whitespace
 		tokEnd := len(sub)
 		for i, ch := range sub {
 			if ch == ',' || ch == '}' || ch == '\n' || ch == '\r' || ch == ' ' || ch == '\t' {
@@ -73,11 +70,9 @@ func parseScanData(raw string) (partNo string, quantity int) {
 		}
 		if tokEnd > 0 {
 			partNo = strings.TrimSpace(sub[:tokEnd])
-			// remove surrounding quotes if any
 			partNo = strings.Trim(partNo, "\"'")
 		}
 
-		// quantity
 		if qidx := strings.Index(lower, "qty:"); qidx != -1 {
 			subq := lower[qidx+4:]
 			subq = strings.TrimLeft(subq, " \t\n\r{\"'")
@@ -94,12 +89,9 @@ func parseScanData(raw string) (partNo string, quantity int) {
 				fmt.Sscanf(qstr, "%d", &quantity)
 			}
 		}
-		// Normalize partNo (extract C+digits if present)
 		if partNo != "" {
-			// try to extract C+digits
 			for i := 0; i < len(partNo); i++ {
 				if (partNo[i] == 'C' || partNo[i] == 'c') && i+1 < len(partNo) {
-					// capture subsequent digits
 					j := i + 1
 					for j < len(partNo) && partNo[j] >= '0' && partNo[j] <= '9' {
 						j++
@@ -113,20 +105,14 @@ func parseScanData(raw string) (partNo string, quantity int) {
 		}
 		return partNo, quantity
 	}
-
-	// Existing behaviour: comma-separated formats (e.g. "C123456,100,...")
 	parts := strings.Split(raw, ",")
-
 	partNo = strings.TrimSpace(parts[0])
-
 	if len(parts) >= 2 {
 		_, _ = fmt.Sscanf(strings.TrimSpace(parts[1]), "%d", &quantity)
 	}
 	return partNo, quantity
 }
 
-// LookupLCSC accepts a scan string, queries the LCSC product API, and returns
-// normalised component details.
 func LookupLCSC(c *gin.Context) {
 	var req lcscLookupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -142,7 +128,6 @@ func LookupLCSC(c *gin.Context) {
 
 	detail, err := fetchLCSCComponent(partNo)
 	if err != nil {
-		// Return a minimal response so the caller can still proceed
 		c.JSON(http.StatusOK, gin.H{
 			"data": lcscComponentDetail{
 				LCSCPartNo: partNo,
@@ -193,7 +178,6 @@ func fetchLCSCComponent(partNo string) (*lcscComponentDetail, error) {
 		Manufacturer: apiResp.Result.BrandNameEn,
 	}
 
-	// Extract footprint and value from the parameter list when available
 	for _, param := range apiResp.Result.ParamVOList {
 		switch strings.ToLower(param.ParamNameEn) {
 		case "package", "footprint", "case/package":

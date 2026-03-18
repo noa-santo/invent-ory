@@ -20,7 +20,6 @@ type Config struct {
 var AppConfig *Config
 
 func Load() *Config {
-	// Load .env file if present; ignore error if it doesn't exist
 	_ = godotenv.Load()
 
 	AppConfig = &Config{
