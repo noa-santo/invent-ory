@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import type { ReactNode } from 'react'
-import { ScanLine, ClipboardList, Package, Cpu } from 'lucide-react'
+import { useState } from 'react'
+import { ClipboardList, Cpu, Package, ScanLine, Settings } from 'lucide-react'
+import { SettingsModal } from './SettingsModal'
 
 // ── Brand name ────────────────────────────────────────────────────────────────
 
@@ -91,6 +93,7 @@ interface LayoutProps {
 }
 
 export default function Layout( {children}: LayoutProps ) {
+    const [settingsOpen, setSettingsOpen] = useState(false)
     const navLinks: NavItemProps[] = [
         {to: '/', icon: <ScanLine className="h-5 w-5"/>, label: 'Scanner'},
         {to: '/inventory', icon: <ClipboardList className="h-5 w-5"/>, label: 'Inventory'},
@@ -115,7 +118,14 @@ export default function Layout( {children}: LayoutProps ) {
                 </nav>
 
                 {/* Footer */}
-                <div className="px-4 py-3 border-t border-border">
+                <div className="px-4 py-3 border-t border-border space-y-3">
+                    <button
+                        onClick={() => setSettingsOpen(true)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 text-slate-400 hover:bg-secondary hover:text-slate-100"
+                    >
+                        <Settings className="h-5 w-5"/>
+                        <span>Settings</span>
+                    </button>
                     <p className="text-xs text-slate-500">PCB Component Inventory</p>
                 </div>
             </aside>
@@ -140,8 +150,17 @@ export default function Layout( {children}: LayoutProps ) {
                     {navLinks.map(( link ) => (
                         <MobileNavItem key={link.to} {...link} />
                     ))}
+                    <button
+                        onClick={() => setSettingsOpen(true)}
+                        className="flex flex-col items-center gap-1 px-4 py-2 text-xs font-medium transition-colors duration-150 text-slate-400 hover:text-slate-200"
+                    >
+                        <Settings className="h-5 w-5"/>
+                        <span>Settings</span>
+                    </button>
                 </nav>
             </div>
+
+            <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen}/>
         </div>
     )
 }

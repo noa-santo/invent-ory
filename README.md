@@ -15,4 +15,3 @@ An app to keep track of all your PCB components
 - view to look up where to put back a package taken out of a box
 - display image of the component (asset from lcsc api)
 - translate datasheets
-- settings to set the backend server without rebuilding
