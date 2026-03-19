@@ -70,6 +70,8 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     name: Build - Android (apk)
+    env:
+      TAURI_ANDROID_KEYSTORE_BASE64: ${{ secrets.TAURI_ANDROID_KEYSTORE_BASE64 }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -104,14 +106,14 @@ jobs:
         working-directory: ./frontend
 
       - name: Decode Keystore
-        if: ${{ secrets.TAURI_ANDROID_KEYSTORE_BASE64 != '' }}
+        if: ${{ env.TAURI_ANDROID_KEYSTORE_BASE64 != '' }}
         run: |
           echo "${{ secrets.TAURI_ANDROID_KEYSTORE_BASE64 }}" | tr -d '\n' | base64 -d > ${{ github.workspace }}/frontend/keystore.jks
 
       - name: Build APK
         working-directory: ./frontend
         env:
-          TAURI_ANDROID_KEYSTORE_PATH: ${{ secrets.TAURI_ANDROID_KEYSTORE_BASE64 != '' && github.workspace || '' }}${{ secrets.TAURI_ANDROID_KEYSTORE_BASE64 != '' && '/frontend/keystore.jks' || '' }}
+          TAURI_ANDROID_KEYSTORE_PATH: ${{ env.TAURI_ANDROID_KEYSTORE_BASE64 != '' && github.workspace || '' }}${{ env.TAURI_ANDROID_KEYSTORE_BASE64 != '' && '/frontend/keystore.jks' || '' }}
           TAURI_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.TAURI_ANDROID_KEYSTORE_PASSWORD }}
           TAURI_ANDROID_KEY_ALIAS: ${{ secrets.TAURI_ANDROID_KEY_ALIAS }}
           TAURI_ANDROID_KEY_PASSWORD: ${{ secrets.TAURI_ANDROID_KEY_PASSWORD }}
