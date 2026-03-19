@@ -1,6 +1,7 @@
 name: Build
 
 on:
+  workflow_dispatch: { }
   workflow_run:
     workflows: [ "CI" ]
     types:
@@ -82,7 +83,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Add Rust Android targets
-        run: rustup target add aarch64-linux-android armv7-linux-androideabi
+        run: rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -104,18 +105,11 @@ jobs:
 
       - name: Build APK
         # Note: This build is unsigned.
-        # To sign the build, you must generate a signing key and add it to the repository secrets.
-        # Then, uncomment the following lines and add the secrets to the environment.
-        # env:
-        #   TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-        #   TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        uses: tauri-apps/tauri-action@v0
-        with:
-          projectPath: frontend
-          args: "build --target apk"
+        working-directory: ./frontend
+        run: npx tauri android build --apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: invent-ory-android-apk
-          path: frontend/src-tauri/target/release/bundle/apk/*.apk
+          path: frontend/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
