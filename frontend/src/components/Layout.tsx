@@ -134,7 +134,7 @@ export default function Layout( {children}: LayoutProps ) {
             <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
                 {/* Mobile header */}
                 <header
-                    className="md:hidden flex items-center gap-2 px-4 py-3 bg-card border-b border-border flex-shrink-0">
+                    className="md:hidden flex items-center gap-2 px-4 py-3 pt-safe bg-card border-b border-border flex-shrink-0">
                     <Cpu className="h-6 w-6 text-blue-400" strokeWidth={1.5}/>
                     <BrandName className="text-2xl text-slate-100"/>
                 </header>

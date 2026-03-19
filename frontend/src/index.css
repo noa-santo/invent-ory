@@ -54,3 +54,17 @@
     @apply bg-slate-500;
   }
 }
+
+/* Safe-area inset utilities for edge-to-edge Android / iOS.
+   pt-safe keeps at least the equivalent of py-3 (0.75 rem) on top, but
+   grows to accommodate the status-bar height on edge-to-edge devices.
+   pb-safe adds extra bottom padding equal to the home-indicator / nav-bar
+   height so content is never hidden under Android's system navigation. */
+@layer utilities {
+  .pt-safe {
+    padding-top: max(theme('spacing.3'), env(safe-area-inset-top, 0px));
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
