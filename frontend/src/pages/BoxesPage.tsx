@@ -137,9 +137,15 @@ export default function BoxesPage() {
                 await api.moveBoxContents(deletingBox.box.id, Number(moveToBoxId))
             }
             await api.deleteBox(deletingBox.box.id)
-            setBoxes(prev => prev.filter(b => b.box.id !== deletingBox.box.id))
+            // Clear the selected box if it was deleted
+            if (selectedBox?.id === deletingBox.box.id) {
+                setSelectedBox(null)
+                setBoxContents([])
+            }
             setDeletingBox(null)
             setMoveToBoxId('')
+            // Reload the boxes list to refresh the UI
+            await loadBoxes()
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to delete box.')
         } finally {
@@ -197,45 +203,47 @@ export default function BoxesPage() {
                     <DialogHeader>
                         <DialogTitle>{editingBox ? 'Edit Box' : 'New Box'}</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={handleSaveBox} className="space-y-4">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="box-name">
-                                Name <span className="text-red-400">*</span>
-                            </Label>
-                            <Input
-                                id="box-name"
-                                type="text"
-                                value={boxName}
-                                onChange={( e ) => setBoxName(e.target.value)}
-                                placeholder="e.g. Resistors 0402"
-                                required
-                                autoFocus
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="box-desc">Description</Label>
-                            <Textarea
-                                id="box-desc"
-                                value={boxDesc}
-                                onChange={( e ) => setBoxDesc(e.target.value)}
-                                placeholder="Optional description…"
-                                rows={3}
-                                className="resize-none"
-                            />
-                        </div>
-                        <DialogFooter>
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => setShowForm(false)}
-                            >
-                                Cancel
-                            </Button>
-                            <Button type="submit" disabled={formLoading || !boxName.trim()}>
-                                {formLoading ? 'Saving…' : (editingBox ? 'Update Box' : 'Create Box')}
-                            </Button>
-                        </DialogFooter>
-                    </form>
+                    <div className="px-6 pb-6">
+                        <form onSubmit={handleSaveBox} className="space-y-4">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="box-name">
+                                    Name <span className="text-red-400">*</span>
+                                </Label>
+                                <Input
+                                    id="box-name"
+                                    type="text"
+                                    value={boxName}
+                                    onChange={( e ) => setBoxName(e.target.value)}
+                                    placeholder="e.g. Resistors 0402"
+                                    required
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="box-desc">Description</Label>
+                                <Textarea
+                                    id="box-desc"
+                                    value={boxDesc}
+                                    onChange={( e ) => setBoxDesc(e.target.value)}
+                                    placeholder="Optional description…"
+                                    rows={3}
+                                    className="resize-none"
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => setShowForm(false)}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button type="submit" disabled={formLoading || !boxName.trim()}>
+                                    {formLoading ? 'Saving…' : (editingBox ? 'Update Box' : 'Create Box')}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </div>
                 </DialogContent>
             </Dialog>
 
@@ -254,28 +262,30 @@ export default function BoxesPage() {
                             undone.
                         </DialogDescription>
                     </DialogHeader>
-                    {deletingBox && deletingBox.count > 0 && (
-                        <div className="space-y-2 pt-2">
-                            <p className="text-sm text-amber-300">
-                                This box contains {deletingBox.count} item(s). Please select a new box to move them
-                                to.
-                            </p>
-                            <Select value={moveToBoxId} onValueChange={setMoveToBoxId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a box..."/>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {boxes
-                                        .filter(b => b.box.id !== deletingBox.box.id)
-                                        .map(b => (
-                                            <SelectItem key={b.box.id} value={String(b.box.id)}>
-                                                {b.box.name}
-                                            </SelectItem>
-                                        ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
+                    <div className="px-6">
+                        {deletingBox && deletingBox.count > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-sm text-amber-300">
+                                    This box contains {deletingBox.count} item(s). Please select a new box to move them
+                                    to.
+                                </p>
+                                <Select value={moveToBoxId} onValueChange={setMoveToBoxId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a box..."/>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {boxes
+                                            .filter(b => b.box.id !== deletingBox.box.id)
+                                            .map(b => (
+                                                <SelectItem key={b.box.id} value={String(b.box.id)}>
+                                                    {b.box.name}
+                                                </SelectItem>
+                                            ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                    </div>
                     <DialogFooter>
                         <Button variant="secondary" onClick={() => setDeletingBox(null)}>Cancel</Button>
                         <Button
