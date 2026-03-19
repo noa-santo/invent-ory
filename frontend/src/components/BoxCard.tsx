@@ -13,10 +13,20 @@ interface BoxCardProps {
 }
 
 export default function BoxCard( {box, itemCount, onClick, onEdit, onDelete}: BoxCardProps ) {
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Space') {
+            e.preventDefault()
+            onClick()
+        }
+    }
+
     return (
         <Card
-            className="p-5 hover:border-primary/60 hover:bg-slate-700/60 active:bg-slate-700 transition-colors duration-150 group relative cursor-pointer"
+            className="p-5 hover:border-primary/60 hover:bg-slate-700/60 active:bg-slate-700 transition-colors duration-150 group relative cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-slate-900"
             onClick={onClick}
+            onKeyDown={handleKeyDown}
+            tabIndex={0}
+            role="button"
         >
             {/* Icon + count row */}
             <div className="flex items-start justify-between mb-3">

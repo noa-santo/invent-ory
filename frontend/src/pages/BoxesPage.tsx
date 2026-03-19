@@ -39,6 +39,7 @@ export default function BoxesPage() {
     // Delete box confirmation
     const [deletingBox, setDeletingBox] = useState<BoxWithCount | null>(null)
     const [moveToBoxId, setMoveToBoxId] = useState<string>('')
+    const [deleteWithItems, setDeleteWithItems] = useState(false)
     const [deleteLoading, setDeleteLoading] = useState(false)
 
     // Box detail view
@@ -122,6 +123,7 @@ export default function BoxesPage() {
 
     function handleDeleteClick( boxWithCount: BoxWithCount ) {
         setDeletingBox(boxWithCount)
+        setDeleteWithItems(false)
         if (boxWithCount.count > 0) {
             const otherBox = boxes.find(b => b.box.id !== boxWithCount.box.id)
             if (otherBox) setMoveToBoxId(String(otherBox.box.id))
@@ -136,7 +138,7 @@ export default function BoxesPage() {
             if (deletingBox.count > 0 && moveToBoxId) {
                 await api.moveBoxContents(deletingBox.box.id, Number(moveToBoxId))
             }
-            await api.deleteBox(deletingBox.box.id)
+            await api.deleteBox(deletingBox.box.id, { deleteItems: deleteWithItems })
             // Clear the selected box if it was deleted
             if (selectedBox?.id === deletingBox.box.id) {
                 setSelectedBox(null)
@@ -144,6 +146,7 @@ export default function BoxesPage() {
             }
             setDeletingBox(null)
             setMoveToBoxId('')
+            setDeleteWithItems(false)
             // Reload the boxes list to refresh the UI
             await loadBoxes()
         } catch (err) {
@@ -263,35 +266,51 @@ export default function BoxesPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="px-6">
-                        {deletingBox && deletingBox.count > 0 && (
-                            <div className="space-y-2">
-                                <p className="text-sm text-amber-300">
-                                    This box contains {deletingBox.count} item(s). Please select a new box to move them
-                                    to.
-                                </p>
-                                <Select value={moveToBoxId} onValueChange={setMoveToBoxId}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a box..."/>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {boxes
-                                            .filter(b => b.box.id !== deletingBox.box.id)
-                                            .map(b => (
+                        {deletingBox && deletingBox.count > 0 && (() => {
+                            const otherBoxes = boxes.filter(b => b.box.id !== deletingBox.box.id)
+                            return otherBoxes.length > 0 ? (
+                                <div className="space-y-2">
+                                    <p className="text-sm text-amber-300">
+                                        This box contains {deletingBox.count} item(s). Please select a new box to move them
+                                        to.
+                                    </p>
+                                    <Select value={moveToBoxId} onValueChange={setMoveToBoxId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a box..."/>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {otherBoxes.map(b => (
                                                 <SelectItem key={b.box.id} value={String(b.box.id)}>
                                                     {b.box.name}
                                                 </SelectItem>
                                             ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <p className="text-sm text-amber-300">
+                                        This box contains {deletingBox.count} item(s), but there are no other boxes to move them to.
+                                    </p>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={deleteWithItems}
+                                            onChange={(e) => setDeleteWithItems(e.target.checked)}
+                                            className="h-4 w-4 rounded border-slate-600 bg-slate-700 text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-slate-900"
+                                        />
+                                        <span className="text-sm text-slate-300">Also delete items</span>
+                                    </label>
+                                </div>
+                            )
+                        })()}
                     </div>
                     <DialogFooter>
                         <Button variant="secondary" onClick={() => setDeletingBox(null)}>Cancel</Button>
                         <Button
                             variant="destructive"
                             onClick={handleDeleteConfirm}
-                            disabled={deleteLoading || (deletingBox?.count ?? 0) > 0 && !moveToBoxId}
+                            disabled={deleteLoading || ((deletingBox?.count ?? 0) > 0 && !moveToBoxId && !deleteWithItems)}
                         >
                             {deleteLoading ? 'Deleting…' : 'Delete'}
                         </Button>

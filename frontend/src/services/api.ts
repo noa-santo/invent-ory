@@ -95,8 +95,11 @@ export function updateBox(
     })
 }
 
-export function deleteBox( id: number ): Promise<void> {
-    return request<void>(`/boxes/${id}`, {method: 'DELETE'})
+export function deleteBox( id: number, options?: { deleteItems?: boolean } ): Promise<void> {
+    const url = options?.deleteItems
+        ? `/boxes/${id}?delete_items=true`
+        : `/boxes/${id}`
+    return request<void>(url, {method: 'DELETE'})
 }
 
 export function getBoxContents( id: number ): Promise<InventoryItem[]> {
