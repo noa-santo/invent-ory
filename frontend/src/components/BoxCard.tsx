@@ -1,7 +1,7 @@
-import type { Box } from '../types'
+import type { Box } from '@/types'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Package, Pencil } from 'lucide-react'
+import { Package, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface BoxCardProps {
@@ -9,9 +9,10 @@ interface BoxCardProps {
     itemCount: number;
     onClick: () => void;
     onEdit: () => void;
+    onDelete: () => void;
 }
 
-export default function BoxCard( {box, itemCount, onClick, onEdit}: BoxCardProps ) {
+export default function BoxCard( {box, itemCount, onClick, onEdit, onDelete}: BoxCardProps ) {
     return (
         <Card
             className="p-5 hover:border-primary/60 hover:bg-slate-700/60 active:bg-slate-700 transition-colors duration-150 group relative cursor-pointer"
@@ -34,6 +35,17 @@ export default function BoxCard( {box, itemCount, onClick, onEdit}: BoxCardProps
                         }}
                     >
                         <Pencil className="h-4 w-4"/>
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-400 hover:text-red-400 hover:bg-slate-600 z-10"
+                        onClick={( e ) => {
+                            e.stopPropagation()
+                            onDelete()
+                        }}
+                    >
+                        <Trash2 className="h-4 w-4"/>
                     </Button>
                     <Badge className="group-hover:bg-slate-600 transition-colors">
                         {itemCount} {itemCount === 1 ? 'item' : 'items'}

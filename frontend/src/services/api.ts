@@ -103,6 +103,13 @@ export function getBoxContents( id: number ): Promise<InventoryItem[]> {
     return request<InventoryItem[]>(`/boxes/${id}/contents`)
 }
 
+export function moveBoxContents( sourceBoxId: number, targetBoxId: number ): Promise<void> {
+    return request<void>(`/boxes/${sourceBoxId}/move-contents`, {
+        method: 'POST',
+        body: JSON.stringify({target_box_id: targetBoxId}),
+    })
+}
+
 // ── Inventory ─────────────────────────────────────────────────────────────────
 
 export function getInventory(): Promise<InventoryItem[]> {

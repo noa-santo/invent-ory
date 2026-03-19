@@ -17,6 +17,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog'
 import { AlertCircle, Loader2, Plus, RefreshCw } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface BoxWithCount {
     box: Box;
@@ -34,6 +35,11 @@ export default function BoxesPage() {
     const [boxName, setBoxName] = useState('')
     const [boxDesc, setBoxDesc] = useState('')
     const [formLoading, setFormLoading] = useState(false)
+
+    // Delete box confirmation
+    const [deletingBox, setDeletingBox] = useState<BoxWithCount | null>(null)
+    const [moveToBoxId, setMoveToBoxId] = useState<string>('')
+    const [deleteLoading, setDeleteLoading] = useState(false)
 
     // Box detail view
     const [selectedBox, setSelectedBox] = useState<Box | null>(null)
@@ -114,6 +120,33 @@ export default function BoxesPage() {
         }
     }
 
+    function handleDeleteClick( boxWithCount: BoxWithCount ) {
+        setDeletingBox(boxWithCount)
+        if (boxWithCount.count > 0) {
+            const otherBox = boxes.find(b => b.box.id !== boxWithCount.box.id)
+            if (otherBox) setMoveToBoxId(String(otherBox.box.id))
+        }
+    }
+
+    async function handleDeleteConfirm() {
+        if (!deletingBox) return
+        setDeleteLoading(true)
+        setError(null)
+        try {
+            if (deletingBox.count > 0 && moveToBoxId) {
+                await api.moveBoxContents(deletingBox.box.id, Number(moveToBoxId))
+            }
+            await api.deleteBox(deletingBox.box.id)
+            setBoxes(prev => prev.filter(b => b.box.id !== deletingBox.box.id))
+            setDeletingBox(null)
+            setMoveToBoxId('')
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to delete box.')
+        } finally {
+            setDeleteLoading(false)
+        }
+    }
+
     return (
         <div className="space-y-5">
             {/* Header */}
@@ -164,8 +197,8 @@ export default function BoxesPage() {
                     <DialogHeader>
                         <DialogTitle>{editingBox ? 'Edit Box' : 'New Box'}</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={handleSaveBox} className="space-4">
-                        <div className="space-y-1.5 p-4">
+                    <form onSubmit={handleSaveBox} className="space-y-4">
+                        <div className="space-y-1.5">
                             <Label htmlFor="box-name">
                                 Name <span className="text-red-400">*</span>
                             </Label>
@@ -179,7 +212,7 @@ export default function BoxesPage() {
                                 autoFocus
                             />
                         </div>
-                        <div className="space-y-1.5 px-4">
+                        <div className="space-y-1.5">
                             <Label htmlFor="box-desc">Description</Label>
                             <Textarea
                                 id="box-desc"
@@ -206,6 +239,56 @@ export default function BoxesPage() {
                 </DialogContent>
             </Dialog>
 
+            {/* Delete Confirmation Modal */}
+            <Dialog
+                open={!!deletingBox}
+                onOpenChange={( open ) => {
+                    if (!open) setDeletingBox(null)
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Box</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete the box "{deletingBox?.box.name}"? This action cannot be
+                            undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {deletingBox && deletingBox.count > 0 && (
+                        <div className="space-y-2 pt-2">
+                            <p className="text-sm text-amber-300">
+                                This box contains {deletingBox.count} item(s). Please select a new box to move them
+                                to.
+                            </p>
+                            <Select value={moveToBoxId} onValueChange={setMoveToBoxId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a box..."/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {boxes
+                                        .filter(b => b.box.id !== deletingBox.box.id)
+                                        .map(b => (
+                                            <SelectItem key={b.box.id} value={String(b.box.id)}>
+                                                {b.box.name}
+                                            </SelectItem>
+                                        ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="secondary" onClick={() => setDeletingBox(null)}>Cancel</Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDeleteConfirm}
+                            disabled={deleteLoading || (deletingBox?.count ?? 0) > 0 && !moveToBoxId}
+                        >
+                            {deleteLoading ? 'Deleting…' : 'Delete'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Boxes grid */}
             {loading ? (
                 <Card className="p-10 flex items-center justify-center gap-3 text-muted-foreground">
@@ -218,13 +301,14 @@ export default function BoxesPage() {
                 </Card>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {boxes.map(( {box, count} ) => (
+                    {boxes.map(( boxWithCount ) => (
                         <BoxCard
-                            key={box.id}
-                            box={box}
-                            itemCount={count}
-                            onClick={() => handleBoxClick(box)}
-                            onEdit={() => openEditForm(box)}
+                            key={boxWithCount.box.id}
+                            box={boxWithCount.box}
+                            itemCount={boxWithCount.count}
+                            onClick={() => handleBoxClick(boxWithCount.box)}
+                            onEdit={() => openEditForm(boxWithCount.box)}
+                            onDelete={() => handleDeleteClick(boxWithCount)}
                         />
                     ))}
                 </div>
