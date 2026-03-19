@@ -36,12 +36,11 @@ export function saveSettings( settings: Settings ): void {
 }
 
 export function getApiUrl(): string {
-    // Check if there's an environment variable first
+    // @ts-ignore
     const envUrl = import.meta.env.VITE_API_URL
     if (envUrl) {
         return envUrl
     }
-    // Fall back to settings
     return getSettings().apiUrl
 }
 
