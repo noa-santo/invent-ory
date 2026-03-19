@@ -2,13 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
     paths-ignore:
       - '.github/**'
   pull_request:
-    branches: [main]
+    branches: [ main ]
     paths-ignore:
       - '.github/**'
+  release:
+    types: [ published ]
 
 jobs:
   # ── Backend ────────────────────────────────────────────────────────────────
@@ -81,12 +83,12 @@ jobs:
         working-directory: frontend/src-tauri
         run: cargo check
 
-  # ── Docker – build & push backend image (main branch only) ────────────────
+  # ── Docker – build & push backend image ───────────────────────────────────
   docker:
     name: Docker – Build & Push Backend
     runs-on: ubuntu-latest
-    needs: [backend]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [ backend ]
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'release'
     permissions:
       contents: read
       packages: write
@@ -107,7 +109,8 @@ jobs:
           images: ghcr.io/${{ github.repository }}/backend
           tags: |
             type=sha
-            type=raw,value=latest
+            type=raw,value=nightly,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6

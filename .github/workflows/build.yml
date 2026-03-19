@@ -2,6 +2,8 @@ name: Build
 
 on:
   workflow_dispatch: { }
+  release:
+    types: [ published ]
   workflow_run:
     workflows: [ "CI" ]
     types:
@@ -9,9 +11,12 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build-desktop:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' || github.event_name == 'release' }}
     strategy:
       fail-fast: false
       matrix:
@@ -67,7 +72,7 @@ jobs:
           path: frontend/src-tauri/target/release/bundle/msi/*.msi
 
   build-android:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' || github.event_name == 'release' }}
     runs-on: ubuntu-latest
     name: Build - Android (apk)
     env:
@@ -126,3 +131,34 @@ jobs:
           path: |
             frontend/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
             frontend/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
+
+  attach-to-release:
+    if: github.event_name == 'release'
+    needs: [ build-desktop, build-android ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download AppImage
+        uses: actions/download-artifact@v4
+        with:
+          name: invent-ory-linux-appimage
+          path: artifacts/linux
+
+      - name: Download MSI installer
+        uses: actions/download-artifact@v4
+        with:
+          name: invent-ory-windows-exe
+          path: artifacts/windows
+
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: invent-ory-android-apk
+          path: artifacts/android
+
+      - name: Upload assets to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/linux/**/*.AppImage
+            artifacts/windows/**/*.msi
+            artifacts/android/**/*.apk
