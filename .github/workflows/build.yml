@@ -4,19 +4,12 @@ on:
   workflow_dispatch: { }
   release:
     types: [ published ]
-  workflow_run:
-    workflows: [ "CI" ]
-    types:
-      - completed
-    branches:
-      - main
 
 permissions:
   contents: write
 
 jobs:
   build-desktop:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' || github.event_name == 'release' }}
     strategy:
       fail-fast: false
       matrix:
@@ -72,7 +65,6 @@ jobs:
           path: frontend/src-tauri/target/release/bundle/msi/*.msi
 
   build-android:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' || github.event_name == 'release' }}
     runs-on: ubuntu-latest
     name: Build - Android (apk)
     env:
@@ -133,7 +125,6 @@ jobs:
             frontend/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
 
   attach-to-release:
-    if: github.event_name == 'release'
     needs: [ build-desktop, build-android ]
     runs-on: ubuntu-latest
     steps:
