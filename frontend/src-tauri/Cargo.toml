@@ -9,6 +9,10 @@ default-run = "invent-ory"
 edition = "2021"
 rust-version = "1.77"
 
+[lib]
+name = "invent_ory"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
