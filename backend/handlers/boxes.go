@@ -130,3 +130,45 @@ func GetBoxContents(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"data": items})
 }
+
+// MoveBoxContents moves all inventory items from one box to another
+func MoveBoxContents(c *gin.Context) {
+	sourceBoxID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid source box id", "message": "source box id must be a positive integer"})
+		return
+	}
+
+	var input struct {
+		TargetBoxID uint `json:"target_box_id"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "message": "invalid request body"})
+		return
+	}
+
+	// Verify source box exists
+	var sourceBox models.Box
+	if result := database.DB.First(&sourceBox, sourceBoxID); result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": result.Error.Error(), "message": "source box not found"})
+		return
+	}
+
+	// Verify target box exists
+	var targetBox models.Box
+	if result := database.DB.First(&targetBox, input.TargetBoxID); result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": result.Error.Error(), "message": "target box not found"})
+		return
+	}
+
+	// Update all inventory items from sourceBoxID to targetBoxID
+	if result := database.DB.Model(&models.InventoryItem{}).Where("box_id = ?", sourceBoxID).Update("box_id", input.TargetBoxID); result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   result.Error.Error(),
+			"message": "failed to move box contents",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "box contents moved successfully"})
+}
