@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.1.2](https://github.com/noa-santo/invent-ory/compare/v0.1.1...v0.1.2) (2026-03-19)
+
+
+### Features
+
+* add GitHub Actions workflow for multi-platform builds ([7e82e49](https://github.com/noa-santo/invent-ory/commit/7e82e499b9fb279d13cac6067caabc9abf38137b))
+* add initial Android project structure with Gradle configuration and basic UI ([7877e42](https://github.com/noa-santo/invent-ory/commit/7877e4235bb8589a98f04f2ded4c1e2b9cb56c3b))
+* enhance Android build process with keystore decoding and conditional signing ([8792303](https://github.com/noa-santo/invent-ory/commit/87923032f1c9f07796f0be1bfe88b69b12b0bb0f))
+* enhance CI/CD workflows to support release events and asset uploads ([b026e16](https://github.com/noa-santo/invent-ory/commit/b026e16abd7b245b3e3728be8e71cdff5f0d6d35))
+* implement initial library structure and entry point for Tauri application ([199ea5a](https://github.com/noa-santo/invent-ory/commit/199ea5a69a4d1809964d5029b9c71642569ee0da))
+* update Android build process to use Tauri-specific keystore and streamline APK signing ([ddc1859](https://github.com/noa-santo/invent-ory/commit/ddc1859ad310e4b671d0bcbb7c587caf54af20a0))
+* update build conditions for desktop and android jobs in GitHub Actions ([5f83ca3](https://github.com/noa-santo/invent-ory/commit/5f83ca34e05e1933b7ff6b7d99a53735b6bffc19))
+* update GitHub Actions for Android builds and ignore .github paths in CI ([43789c6](https://github.com/noa-santo/invent-ory/commit/43789c66043a71261125f4363eecef94b7cff73e))
+
+
+### Bug Fixes
+
+* add Android signing config reading from environment variables ([cbaa536](https://github.com/noa-santo/invent-ory/commit/cbaa53640df5e7b21ab895500088e7d2010ebd5c))
+* get camera permission on android and make sure there is space for os ui elements  ([b56dad8](https://github.com/noa-santo/invent-ory/commit/b56dad80bfd0e51800aa7f8749123464217a6f1d))
+
 ## [0.1.1](https://github.com/noa-santo/invent-ory/compare/v0.1.0...v0.1.1) (2026-03-19)
 
 
