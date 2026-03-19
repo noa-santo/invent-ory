@@ -1,0 +1,121 @@
+name: Build
+
+on:
+  workflow_run:
+    workflows: [ "CI" ]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  build-desktop:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ ubuntu-latest, windows-latest ]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: frontend/src-tauri -> target
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: ./frontend
+
+      - name: Build
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: frontend
+
+      - name: Upload AppImage
+        if: matrix.platform == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: invent-ory-linux-appimage
+          path: frontend/src-tauri/target/release/bundle/appimage/*.AppImage
+
+      - name: Upload MSI installer
+        if: matrix.platform == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: invent-ory-windows-exe
+          path: frontend/src-tauri/target/release/bundle/msi/*.msi
+
+  build-android:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    name: Build - Android (apk)
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add Rust Android targets
+        run: rustup target add aarch64-linux-android armv7-linux-androideabi
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: frontend/src-tauri -> target
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: ./frontend
+
+      - name: Build APK
+        # Note: This build is unsigned.
+        # To sign the build, you must generate a signing key and add it to the repository secrets.
+        # Then, uncomment the following lines and add the secrets to the environment.
+        # env:
+        #   TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+        #   TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        uses: tauri-apps/tauri-action@v0
+        with:
+          projectPath: frontend
+          args: "build --target apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: invent-ory-android-apk
+          path: frontend/src-tauri/target/release/bundle/apk/*.apk
