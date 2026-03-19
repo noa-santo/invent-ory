@@ -73,14 +73,31 @@ func UpdateInventoryItem(c *gin.Context) {
 		return
 	}
 
-	var input models.InventoryItem
-	if err := c.ShouldBindJSON(&input); err != nil {
+	// Use a request struct with pointer fields so we can distinguish omitted fields from zero values
+	type updateInventoryRequest struct {
+		ComponentID *uint `json:"component_id"`
+		BoxID       *uint `json:"box_id"`
+		Quantity    *int  `json:"quantity"`
+	}
+
+	var req updateInventoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "message": "invalid request body"})
 		return
 	}
 
-	input.ID = item.ID
-	if result := database.DB.Save(&input); result.Error != nil {
+	// Apply only provided fields to the fetched item
+	if req.ComponentID != nil {
+		item.ComponentID = *req.ComponentID
+	}
+	if req.BoxID != nil {
+		item.BoxID = *req.BoxID
+	}
+	if req.Quantity != nil {
+		item.Quantity = *req.Quantity
+	}
+
+	if result := database.DB.Save(&item); result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   result.Error.Error(),
 			"message": "failed to update inventory item",
@@ -88,8 +105,8 @@ func UpdateInventoryItem(c *gin.Context) {
 		return
 	}
 
-	database.DB.Preload("Component").Preload("Box").First(&input, input.ID)
-	c.JSON(http.StatusOK, gin.H{"data": input, "message": "inventory item updated"})
+	database.DB.Preload("Component").Preload("Box").First(&item, item.ID)
+	c.JSON(http.StatusOK, gin.H{"data": item, "message": "inventory item updated"})
 }
 
 // DeleteInventoryItem removes an inventory item by ID
