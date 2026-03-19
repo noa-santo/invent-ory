@@ -2,13 +2,20 @@ import * as React from 'react'
 import { useEffect, useState } from 'react'
 import BoxCard from '../components/BoxCard'
 import * as api from '../services/api'
-import type { Box, InventoryItem } from '../types'
+import type { Box, InventoryItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { AlertCircle, Loader2, Plus, RefreshCw } from 'lucide-react'
 
 interface BoxWithCount {
@@ -51,7 +58,7 @@ export default function BoxesPage() {
     }
 
     useEffect(() => {
-        loadBoxes()
+        loadBoxes().then()
     }, [])
 
     function openCreateForm() {
@@ -124,17 +131,10 @@ export default function BoxesPage() {
                     </Button>
                     <Button
                         type="button"
-                        onClick={() => {
-                            if (showForm) {
-                                setShowForm(false)
-                                setEditingBox(null)
-                            } else {
-                                openCreateForm()
-                            }
-                        }}
+                        onClick={openCreateForm}
                     >
                         <Plus className="h-4 w-4"/>
-                        {showForm ? 'Cancel' : 'Create Box'}
+                        Create Box
                     </Button>
                 </div>
             </div>
@@ -148,14 +148,24 @@ export default function BoxesPage() {
                 </div>
             )}
 
-            {/* Create/Edit box form */}
-            {showForm && (
-                <form onSubmit={handleSaveBox} className="max-w-md">
-                    <Card className="p-5 space-y-4">
-                        <h2 className="font-semibold text-slate-200">
-                            {editingBox ? 'Edit Box' : 'New Box'}
-                        </h2>
-                        <div className="space-y-1.5">
+            {/* Create/Edit Modal */}
+            <Dialog
+                open={showForm}
+                onOpenChange={( open ) => {
+                    if (!open) {
+                        setShowForm(false)
+                        setEditingBox(null)
+                        setBoxName('')
+                        setBoxDesc('')
+                    }
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{editingBox ? 'Edit Box' : 'New Box'}</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleSaveBox} className="space-4">
+                        <div className="space-y-1.5 p-4">
                             <Label htmlFor="box-name">
                                 Name <span className="text-red-400">*</span>
                             </Label>
@@ -169,37 +179,32 @@ export default function BoxesPage() {
                                 autoFocus
                             />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5 px-4">
                             <Label htmlFor="box-desc">Description</Label>
                             <Textarea
                                 id="box-desc"
                                 value={boxDesc}
                                 onChange={( e ) => setBoxDesc(e.target.value)}
                                 placeholder="Optional description…"
-                                rows={2}
+                                rows={3}
                                 className="resize-none"
                             />
                         </div>
-                        <div className="flex gap-2">
+                        <DialogFooter>
                             <Button
                                 type="button"
                                 variant="secondary"
-                                onClick={() => {
-                                    setShowForm(false)
-                                    setEditingBox(null)
-                                    setBoxName('')
-                                    setBoxDesc('')
-                                }}
+                                onClick={() => setShowForm(false)}
                             >
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={formLoading || !boxName.trim()}>
                                 {formLoading ? 'Saving…' : (editingBox ? 'Update Box' : 'Create Box')}
                             </Button>
-                        </div>
-                    </Card>
-                </form>
-            )}
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
             {/* Boxes grid */}
             {loading ? (
