@@ -1,5 +1,4 @@
-import type { SubmitEvent } from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { type SubmitEvent, useCallback, useEffect, useState } from 'react'
 import BoxCard from '../components/BoxCard'
 import * as api from '../services/api'
 import type { Box, InventoryItem } from '@/types'
