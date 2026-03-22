@@ -139,7 +139,6 @@ export default function BoxesPage() {
                 await api.moveBoxContents(deletingBox.box.id, Number(moveToBoxId))
             }
             await api.deleteBox(deletingBox.box.id, {deleteItems: deleteWithItems})
-            // Clear the selected box if it was deleted
             if (selectedBox?.id === deletingBox.box.id) {
                 setSelectedBox(null)
                 setBoxContents([])
@@ -147,7 +146,6 @@ export default function BoxesPage() {
             setDeletingBox(null)
             setMoveToBoxId('')
             setDeleteWithItems(false)
-            // Reload the boxes list to refresh the UI
             await loadBoxes()
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to delete box.')
@@ -162,7 +160,7 @@ export default function BoxesPage() {
         const otherBoxes = boxes.filter(b => b.box.id !== deletingBox.box.id)
         if (otherBoxes.length > 0) {
             return (
-                <div className="space-y-2">
+                <div className="space-y-2 pt-4">
                     <p className="text-sm text-amber-300">
                         This box contains {deletingBox.count} item(s). Please select a new box to move them
                         to.
@@ -184,7 +182,7 @@ export default function BoxesPage() {
         }
 
         return (
-            <div className="space-y-3">
+            <div className="space-y-3 pt-4">
                 <p className="text-sm text-amber-300">
                     This box contains {deletingBox.count} item(s), but there are no other boxes to move them to.
                 </p>
