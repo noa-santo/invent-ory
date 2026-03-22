@@ -8,7 +8,6 @@ An app to keep track of all your PCB components
 - import BOM to automatically subtract the parts for n PCBs from the inventory stock
 - button to see the datasheet
 - more data abt each part (LCSC api delivers more than used)
-- edit boxes
 - search component by any of its attributes
 - better qr code scanning
 - view to see how an entire box should be optimally ordered to physically find stuff in it
