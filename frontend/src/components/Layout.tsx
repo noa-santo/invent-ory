@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
-import { ClipboardList, Cpu, Package, ScanLine, Settings } from 'lucide-react'
+import { ClipboardList, Cpu, FileText, Package, ScanLine, Settings } from 'lucide-react'
 import { SettingsModal } from './SettingsModal'
 
 // ── Brand name ────────────────────────────────────────────────────────────────
@@ -94,10 +94,11 @@ interface LayoutProps {
 
 export default function Layout( {children}: LayoutProps ) {
     const [settingsOpen, setSettingsOpen] = useState(false)
-    const navLinks: NavItemProps[] = [
+    const navLinks: { to: string; icon: ReactNode; label: string }[] = [
         {to: '/', icon: <ScanLine className="h-5 w-5"/>, label: 'Scanner'},
         {to: '/inventory', icon: <ClipboardList className="h-5 w-5"/>, label: 'Inventory'},
         {to: '/boxes', icon: <Package className="h-5 w-5"/>, label: 'Boxes'},
+        {to: '/bom', icon: <FileText className="h-5 w-5"/>, label: 'BOM'},
     ]
 
     return (

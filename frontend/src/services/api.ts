@@ -158,6 +158,13 @@ export function upsertByLCSC(
     })
 }
 
+export function batchSubtractInventory( items: { inventory_item_id: number; quantity: number }[] ): Promise<void> {
+    return request<void>('/inventory/batch-subtract', {
+        method: 'POST',
+        body: JSON.stringify({items}),
+    })
+}
+
 export function lookupLCSC( scanData: string ): Promise<LCSCLookupResult> {
     return request<LCSCLookupResult>('/lcsc/lookup', {
         method: 'POST',
