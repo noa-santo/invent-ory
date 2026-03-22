@@ -10,7 +10,9 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o server ./main.go
+# Use buildkit args for cross-compilation
+ARG TARGETOS TARGETARCH
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o server ./main.go
 
 # ---- Final stage ----
 FROM alpine:3.19
