@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.1.3](https://github.com/noa-santo/invent-ory/compare/v0.1.2...v0.1.3) (2026-03-22)
+
+
+### Features
+
+* add bom page ([#12](https://github.com/noa-santo/invent-ory/issues/12)) ([5715112](https://github.com/noa-santo/invent-ory/commit/57151124bb818a6d4fbb86ee179be2f378928464))
+* add bom tab ([#11](https://github.com/noa-santo/invent-ory/issues/11)) ([b9ca25f](https://github.com/noa-santo/invent-ory/commit/b9ca25fd7665d9ce2ac370525c7638a64db38ccf))
+* add delete functionality to BoxesPage and BoxCard with move confirmation for box contents ([b0fed66](https://github.com/noa-santo/invent-ory/commit/b0fed6662705d34c678c4d76f7f66522ed432534))
+* add edit functionality to BoxCard and enhance BoxesPage form handling ([3035561](https://github.com/noa-santo/invent-ory/commit/30355610c78380d9fcf75b4da5791d5d6c78c5a1))
+* add MoveBoxContents functionality to transfer inventory items between boxes ([0355f2b](https://github.com/noa-santo/invent-ory/commit/0355f2be8f8353c7ad85d4e90bae7cc7dfb5c073))
+* add option to delete inventory items when deleting a box ([fa92919](https://github.com/noa-santo/invent-ory/commit/fa92919cdc926a6908d4ec5239cd9e7a7157f896))
+* edit and delete boxes ([6aed144](https://github.com/noa-santo/invent-ory/commit/6aed14414dc66306470e89cd191e5f62e6324781))
+* enhance BoxesPage with improved UI for box deletion and editing forms ([b65a776](https://github.com/noa-santo/invent-ory/commit/b65a776545818a4cbe15aaad28f0f8ebedf2f6ea))
+* improve delete box modal with enhanced item handling and refactor rendering logic ([50070c3](https://github.com/noa-santo/invent-ory/commit/50070c36599c817f11a1d3681247b159ebd95710))
+* overhaul box page layout  ([7c95a8b](https://github.com/noa-santo/invent-ory/commit/7c95a8b42eed436b9c66bd9e3dccdf023adfe218))
+* refactor BoxesPage to use Dialog for create/edit box form and improve layout ([ca60cf3](https://github.com/noa-santo/invent-ory/commit/ca60cf34e3e684a8640bb3a181474467ba07552c))
+* simplify import statements in BoxesPage component ([d4b2c09](https://github.com/noa-santo/invent-ory/commit/d4b2c09576c7e59ee80d238358d9e7a9a229c6d0))
+* update BoxesPage layout with padding adjustments and remove unnecessary comments ([5abe003](https://github.com/noa-santo/invent-ory/commit/5abe0036ce01f6f5afc389de5243f0179ec69065))
+
+
+### Bug Fixes
+
+* apply CodeRabbit auto-fixes ([991c3a1](https://github.com/noa-santo/invent-ory/commit/991c3a1ca5312e88cc7ef85c2b80addb023d61c5))
+
+
+### Documentation
+
+* remove outdated edit boxes mention from README ([b64f36b](https://github.com/noa-santo/invent-ory/commit/b64f36bb183405d1de37475b64ce1652aaae71fe))
+
 ## [0.1.2](https://github.com/noa-santo/invent-ory/compare/v0.1.1...v0.1.2) (2026-03-19)
 
 
