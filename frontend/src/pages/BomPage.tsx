@@ -12,8 +12,10 @@ import { BomFooter } from '@/components/BomFooter'
 import { BomSearchDialog } from '@/components/BomSearchDialog'
 import { BomSolderingSummaryDialog } from '@/components/BomSolderingSummaryDialog'
 import { BomOrderDialog } from '@/components/BomOrderDialog'
+import { useToast } from '@/components/ui/use-toast'
 
 export default function BomPage() {
+    const {toast} = useToast()
     const [bomData, setBomData] = useState<BomItem[] | null>(null)
     const [bomName, setBomName] = useState<string>('Untitled BOM')
     const [pcbCount, setPcbCount] = useState<number>(1)
@@ -167,7 +169,11 @@ export default function BomPage() {
             // We check the first few lines to find headers
             const headerLineIdx = lines.findIndex(l => l.toLowerCase().includes('designator') && l.toLowerCase().includes('quantity'))
             if (headerLineIdx === -1) {
-                alert('Could not find header row in CSV. Expected \'Designator\' and \'Quantity\' columns.')
+                toast({
+                    title: 'CSV Error',
+                    description: 'Could not find header row in CSV. Expected \'Designator\' and \'Quantity\' columns.',
+                    variant: 'destructive',
+                })
                 return
             }
 
@@ -248,7 +254,11 @@ export default function BomPage() {
             await parseFile(file)
         } catch (error) {
             console.error('Error reading file:', error)
-            alert('Failed to read BOM file.')
+            toast({
+                title: 'Upload Failed',
+                description: 'Failed to read BOM file.',
+                variant: 'destructive',
+            })
         }
     }
 
@@ -286,17 +296,28 @@ export default function BomPage() {
                 .filter(i => i.quantity > 0)
 
             if (itemsToSubtract.length === 0) {
-                alert('No matched items to subtract.')
+                toast({
+                    title: 'No Items',
+                    description: 'No matched items to subtract.',
+                    variant: 'destructive',
+                })
                 return
             }
 
             await api.batchSubtractInventory(itemsToSubtract)
             await loadInventory() // Refresh stock
-            alert('Inventory updated successfully.')
+            toast({
+                title: 'Success',
+                description: 'Inventory updated successfully.',
+            })
             setConfirmSubtract(false)
         } catch (e) {
             console.error(e)
-            alert('Failed to subtract inventory: ' + (e instanceof Error ? e.message : String(e)))
+            toast({
+                title: 'Error',
+                description: 'Failed to subtract inventory: ' + (e instanceof Error ? e.message : String(e)),
+                variant: 'destructive',
+            })
         } finally {
             setLoading(false)
         }
@@ -363,11 +384,18 @@ export default function BomPage() {
             // Clear status for next PCB
             setSolderingStatus({})
             setIsSolderingSummaryOpen(false)
-            alert('Inventory updated and soldering status cleared for next PCB.')
+            toast({
+                title: 'Success',
+                description: 'Inventory updated and soldering status cleared for next PCB.',
+            })
 
         } catch (e) {
             console.error(e)
-            alert('Failed to subtract: ' + String(e))
+            toast({
+                title: 'Error',
+                description: 'Failed to subtract: ' + String(e),
+                variant: 'destructive',
+            })
         } finally {
             setLoading(false)
         }
@@ -453,7 +481,11 @@ export default function BomPage() {
 
     const handleLcscExport = async () => {
         if (orderList.length === 0) {
-            alert('Order list is empty.')
+            toast({
+                title: 'Order Empty',
+                description: 'Order list is empty.',
+                variant: 'destructive',
+            })
             return
         }
 
@@ -465,10 +497,16 @@ export default function BomPage() {
 
         try {
             await navigator.clipboard.writeText(textForClipboard)
-            alert('Order copied to clipboard! Opening LCSC BOM Tool. Paste the data or upload the downloaded CSV.')
+            toast({
+                title: 'Copied!',
+                description: 'Order copied to clipboard! Opening LCSC BOM Tool. Paste the data or upload the downloaded CSV.',
+            })
         } catch (err) {
             console.error('Failed to copy: ', err)
-            alert('Opening LCSC BOM Tool. Please upload the downloaded CSV.')
+            toast({
+                title: 'Copy Failed',
+                description: 'Opening LCSC BOM Tool. Please upload the downloaded CSV.',
+            })
         }
 
         const encodedUri = encodeURI(csvContent)

@@ -4,6 +4,7 @@ import ScannerPage from './pages/ScannerPage'
 import InventoryPage from './pages/InventoryPage'
 import BoxesPage from './pages/BoxesPage'
 import BomPage from './pages/BomPage'
+import { Toaster } from '@/components/ui/toaster'
 
 function App() {
     return (
@@ -14,6 +15,7 @@ function App() {
                 <Route path="/boxes" element={<BoxesPage/>}/>
                 <Route path="/bom" element={<BomPage/>}/>
             </Routes>
+            <Toaster/>
         </Layout>
     )
 }
