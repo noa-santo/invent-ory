@@ -46,6 +46,7 @@ func main() {
 			boxes.PUT("/:id", handlers.UpdateBox)
 			boxes.DELETE("/:id", handlers.DeleteBox)
 			boxes.GET("/:id/contents", handlers.GetBoxContents)
+			boxes.POST("/:id/move-contents", handlers.MoveBoxContents)
 		}
 
 		// Inventory
