@@ -1,69 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import readXlsxFile from 'read-excel-file'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import {
-    AlertCircle,
-    CheckCircle2,
-    FileText,
-    Flame,
-    History,
-    Plus,
-    Search,
-    Settings,
-    ShoppingCart,
-    Trash2,
-    UploadCloud,
-    X,
-    Zap,
-} from 'lucide-react'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
 import * as api from '../services/api'
 import { InventoryItem } from '@/types'
-
-// Types
-interface BomItem {
-    id: string;
-    designator: string;
-    footprint: string;
-    quantity: number;
-    value: string;
-    lcscPartNumber: string;
-    matchedInventoryItem?: InventoryItem;
-    manualMatch?: boolean;
-    selected?: boolean;
-    placed?: boolean;
-    soldered?: boolean;
-}
-
-interface SavedBom {
-    name: string;
-    date: string;
-    data: BomItem[];
-}
-
-interface SolderingSummaryItem {
-    id: number;
-    name: string;
-    quantity: number;
-}
-
-interface OrderItem {
-    lcscPartNumber: string;
-    quantity: number;
-    stock: number;
-    needed: number;
-    toOrder: number;
-}
+import { BomItem, OrderItem, SavedBom, SolderingSummaryItem } from '@/types/bom'
+import { BomHeader } from '@/components/BomHeader'
+import { BomControlPanel } from '@/components/BomControlPanel'
+import { BomTable } from '@/components/BomTable'
+import { BomEmptyState } from '@/components/BomEmptyState'
+import { BomFooter } from '@/components/BomFooter'
+import { BomSearchDialog } from '@/components/BomSearchDialog'
+import { BomSolderingSummaryDialog } from '@/components/BomSolderingSummaryDialog'
+import { BomOrderDialog } from '@/components/BomOrderDialog'
 
 export default function BomPage() {
     const [bomData, setBomData] = useState<BomItem[] | null>(null)
@@ -604,50 +552,11 @@ export default function BomPage() {
 
     if (!bomData) {
         return (
-            <div className="flex flex-col h-full space-y-5 p-6">
-                <h1 className="text-2xl font-bold text-slate-100">BOM Upload</h1>
-
-                <Card
-                    className="border-2 border-dashed border-gray-600 bg-card/50 rounded-xl p-16 text-center hover:bg-card/80 transition-all cursor-pointer relative group flex flex-col items-center justify-center gap-4">
-                    <input
-                        type="file"
-                        accept=".xlsx, .csv"
-                        onChange={handleFileUpload}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    />
-                    <div className="bg-primary/10 p-4 rounded-full group-hover:bg-primary/20 transition-colors">
-                        <UploadCloud className="w-10 h-10 text-primary"/>
-                    </div>
-                    <div>
-                        <p className="text-lg font-medium text-slate-200">Click or drag file to this area to upload</p>
-                        <p className="text-sm text-muted-foreground mt-1">Support for .xlsx and .csv files</p>
-                    </div>
-                </Card>
-
-                {savedBoms.length > 0 && (
-                    <div className="mt-8">
-                        <h2 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
-                            <History className="w-5 h-5"/> Recent BOMs
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {savedBoms.map(( saved, idx ) => (
-                                <Card key={idx} className="p-4 hover:bg-secondary/20 cursor-pointer transition-colors"
-                                      onClick={() => loadFromHistory(saved)}>
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <div className="font-medium text-slate-200">{saved.name}</div>
-                                            <div className="text-xs text-muted-foreground mt-1">
-                                                {new Date(saved.date).toLocaleDateString()} • {saved.data.length} components
-                                            </div>
-                                        </div>
-                                        <FileText className="w-8 h-8 text-muted-foreground/50"/>
-                                    </div>
-                                </Card>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
+            <BomEmptyState
+                onFileUpload={handleFileUpload}
+                savedBoms={savedBoms}
+                onLoadFromHistory={loadFromHistory}
+            />
         )
     }
 
@@ -657,381 +566,72 @@ export default function BomPage() {
 
     return (
         <div className="space-y-5 p-1 h-full flex flex-col">
-            {/* Header Bar */}
-            <div
-                className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card/50 p-4 rounded-xl border border-border">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-                        {bomName}
-                        {isSolderingMode &&
-                            <Badge variant="default" className="bg-orange-500/20 text-orange-400 border-orange-500/50">Soldering
-                                Mode</Badge>}
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        {uniqueParts} unique parts • {totalPartsNeeded} total components required
-                    </p>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="destructive" size="sm" onClick={handleClearBom}>
-                        <X className="w-4 h-4 mr-2"/>
-                        Close BOM
-                    </Button>
-                </div>
-            </div>
+            <BomHeader
+                bomName={bomName}
+                isSolderingMode={isSolderingMode}
+                uniqueParts={uniqueParts}
+                totalPartsNeeded={totalPartsNeeded}
+                onClearBom={handleClearBom}
+            />
 
-            {/* Control Panel */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Configuration */}
-                <Card className="p-5 flex flex-col justify-center gap-4">
-                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                        <Settings className="w-4 h-4"/> Production Settings
-                    </h2>
-                    <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                            <label className="text-xs text-slate-400 mb-1 block">PCBs to Build</label>
-                            <div className="flex items-center gap-2">
-                                <Input
-                                    type="number"
-                                    min="1"
-                                    value={pcbCount}
-                                    onChange={( e ) => setPcbCount(Math.max(1, parseInt(e.target.value) || 0))}
-                                    className="w-24 text-center font-mono text-lg"
-                                />
-                                <span className="text-sm text-muted-foreground">units</span>
-                            </div>
-                        </div>
-                        <Button variant="outline" size="sm" onClick={calculateMaxPossible}
-                                className="h-10 border-dashed text-xs">
-                            Calculate Max
-                        </Button>
-                    </div>
-                </Card>
+            <BomControlPanel
+                pcbCount={pcbCount}
+                setPcbCount={setPcbCount}
+                calculateMaxPossible={calculateMaxPossible}
+                loading={loading}
+                confirmSubtract={confirmSubtract}
+                setConfirmSubtract={setConfirmSubtract}
+                handleQuickSubtract={handleQuickSubtract}
+                isSolderingMode={isSolderingMode}
+                setIsSolderingMode={setIsSolderingMode}
+                prepareSolderingSummary={prepareSolderingSummary}
+            />
 
-                {/* Actions */}
-                <Card className="p-5 flex flex-col justify-center gap-4 lg:col-span-2">
-                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                        <Zap className="w-4 h-4"/> Quick Actions
-                    </h2>
-                    <div className="flex flex-wrap gap-3">
-                        <Button
-                            disabled={loading}
-                            variant={confirmSubtract ? 'destructive' : 'secondary'}
-                            onClick={() => {
-                                if (confirmSubtract) {
-                                    void handleQuickSubtract()
-                                } else {
-                                    setConfirmSubtract(true)
-                                }
-                            }}
-                            onMouseLeave={() => setConfirmSubtract(false)}
-                        >
-                            {loading ? 'Processing...' : (confirmSubtract ? 'Confirm Subtract?' : 'Quick Subtract Stock')}
-                        </Button>
-
-                        <Button
-                            variant={isSolderingMode ? 'default' : 'outline'}
-                            className={isSolderingMode ? 'bg-green-600 hover:bg-green-700 text-white' : ''}
-                            onClick={() => setIsSolderingMode(!isSolderingMode)}
-                        >
-                            <Flame className={`w-4 h-4 mr-2 ${isSolderingMode ? 'fill-current' : ''}`}/>
-                            {isSolderingMode ? 'Exit Soldering Mode' : 'Enter Soldering Mode'}
-                        </Button>
-
-                        {isSolderingMode && (
-                            <Button className="ml-auto bg-blue-600 hover:bg-blue-700" onClick={prepareSolderingSummary}>
-                                <CheckCircle2 className="w-4 h-4 mr-2"/>
-                                Finish & Subtract
-                            </Button>
-                        )}
-                    </div>
-                </Card>
-            </div>
-
-            {/* Main Table */}
             <Card className="flex-1 overflow-hidden border-border bg-card/80 flex flex-col">
-                <div className="overflow-auto flex-1">
-                    <table className="w-full text-sm">
-                        <thead
-                            className="sticky top-0 bg-secondary/90 backdrop-blur-sm z-10 text-xs uppercase font-semibold text-muted-foreground">
-                        <tr>
-                            <th className="p-3 text-left w-12">#</th>
-                            <th className="p-3 text-left">Designator</th>
-                            <th className="p-3 text-left">Part Info</th>
-                            {!isSolderingMode && <th className="p-3 text-center">Qty/PCB</th>}
-                            {!isSolderingMode && <th className="p-3 text-center">Total</th>}
-                            <th className="p-3 text-left">Stock Status</th>
-                            {isSolderingMode && <th className="p-3 text-center w-24">Placed</th>}
-                            {isSolderingMode && <th className="p-3 text-center w-24">Soldered</th>}
-                            <th className="p-3 text-right">Actions</th>
-                        </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/50">
-                        {displayItems.map(( item, idx ) => {
-                            const designator = (item as any).uniqueDesignator || item.designator
-                            const needed = item.quantity * pcbCount
-                            const match = item.matchedInventoryItem
-                            const inStock = match ? match.quantity : 0
-                            const isMissing = needed > inStock
+                <BomTable
+                    items={displayItems}
+                    pcbCount={pcbCount}
+                    isSolderingMode={isSolderingMode}
+                    solderingStatus={solderingStatus}
+                    onToggleSolderingStatus={toggleSolderingStatus}
+                    onOpenMatchDialog={openMatchDialog}
+                    onDeleteItem={handleDeleteItem}
+                />
 
-                            const sStatus = solderingStatus[designator] || {placed: false, soldered: false}
-
-                            return (
-                                <tr key={item.id} className="hover:bg-secondary/40 transition-colors group">
-                                    <td className="p-3 text-muted-foreground text-xs">{idx + 1}</td>
-                                    <td className="p-3 font-mono text-blue-400 font-medium">{designator}</td>
-                                    <td className="p-3">
-                                        <div className="font-medium text-slate-200">{item.value}</div>
-                                        <div className="text-xs text-muted-foreground">{item.footprint}</div>
-                                        {item.lcscPartNumber && (
-                                            <div
-                                                className="text-xs font-mono text-emerald-500 mt-0.5">{item.lcscPartNumber}</div>
-                                        )}
-                                    </td>
-                                    {!isSolderingMode && <td className="p-3 text-center">{item.quantity}</td>}
-                                    {!isSolderingMode &&
-                                        <td className="p-3 text-center font-bold text-slate-200">{needed}</td>}
-                                    <td className="p-3">
-                                        {match ? (
-                                            <div className="flex flex-col">
-                                                <div
-                                                    className="text-sm font-medium text-slate-200">{match.component.name}</div>
-                                                <Badge variant="outline"
-                                                       className={`${isMissing ? 'text-red-400 border-red-500/30' : 'text-green-400 border-green-500/30'} mt-1`}>
-                                                    {inStock} in stock
-                                                </Badge>
-                                                <span
-                                                    className="text-xs text-muted-foreground mt-1">Box: {match.box?.name}</span>
-                                            </div>
-                                        ) : (
-                                            <Badge variant="outline"
-                                                   className="text-gray-500 border-gray-500/30 bg-gray-500/10">
-                                                Not Found
-                                            </Badge>
-                                        )}
-                                    </td>
-                                    {isSolderingMode && (
-                                        <td className="p-3 text-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={sStatus.placed}
-                                                onChange={() => toggleSolderingStatus(designator, 'placed')}
-                                                className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-primary focus:ring-offset-gray-900"
-                                            />
-                                        </td>
-                                    )}
-                                    {isSolderingMode && (
-                                        <td className="p-3 text-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={sStatus.soldered}
-                                                onChange={() => toggleSolderingStatus(designator, 'soldered')}
-                                                className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-primary focus:ring-offset-gray-900"
-                                            />
-                                        </td>
-                                    )}
-                                    <td className="p-3 text-right">
-                                        {!isSolderingMode && (
-                                            <div className="flex justify-end gap-2">
-                                                <Button size="icon" variant="ghost"
-                                                        onClick={() => openMatchDialog(item.id)}
-                                                        className="h-8 w-8 text-muted-foreground hover:text-white">
-                                                    <Search className="w-4 h-4"/>
-                                                </Button>
-                                                <Button size="icon" variant="ghost"
-                                                        onClick={() => handleDeleteItem(item.id)}
-                                                        className="h-8 w-8 text-muted-foreground hover:text-red-400">
-                                                    <Trash2 className="w-4 h-4"/>
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            )
-                        })}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Footer / Order Summary */}
-                {!isSolderingMode && (
-                    <div className="p-4 border-t border-border bg-secondary/20 flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                            <Button size="sm" variant="outline" onClick={handleAddItem}>
-                                <Plus className="w-4 h-4 mr-2"/> Add Item
-                            </Button>
-                            <div className="h-6 w-px bg-border mx-2"/>
-                            <div
-                                className={`${missingCount > 0 ? 'bg-red-500/10' : 'bg-green-500/10'} p-2 rounded-full`}>
-                                <AlertCircle
-                                    className={`w-5 h-5 ${missingCount > 0 ? 'text-red-500' : 'text-green-500'}`}/>
-                            </div>
-                            <div>
-                                <div
-                                    className={`text-sm font-medium ${missingCount > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                    {missingCount > 0 ? `${missingCount} parts missing stock` : 'All parts in stock!'}
-                                </div>
-                                <div className="text-xs text-muted-foreground">Ready for production</div>
-                            </div>
-                        </div>
-                        {missingCount > 0 && (
-                            <Button onClick={prepareOrder} className="bg-blue-600 hover:bg-blue-700 text-white">
-                                <ShoppingCart className="w-4 h-4 mr-2"/>
-                                Review & Order
-                            </Button>
-                        )}
-                    </div>
-                )}
+                <BomFooter
+                    isSolderingMode={isSolderingMode}
+                    missingCount={missingCount}
+                    onAddItem={handleAddItem}
+                    onPrepareOrder={prepareOrder}
+                />
             </Card>
 
-            {/* Search Dialog */}
-            <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Select Component</DialogTitle>
-                        <DialogDescription>Search inventory to manually match this BOM item.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 my-4">
-                        <Input
-                            placeholder="Search by name, LCSC part #, value..."
-                            value={searchQuery}
-                            onChange={( e ) => setSearchQuery(e.target.value)}
-                        />
-                        <div className="h-64 overflow-y-auto border rounded-md p-2 space-y-2">
-                            {filteredInventory.map(inv => (
-                                <div key={inv.id}
-                                     onClick={() => handleMatchSelect(inv)}
-                                     className="p-3 hover:bg-secondary cursor-pointer rounded border border-transparent hover:border-border transition-all">
-                                    <div className="flex justify-between items-center">
-                                        <div className="font-semibold text-sm">{inv.component.name}</div>
-                                        <Badge variant="outline">{inv.quantity} in stock</Badge>
-                                    </div>
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                        {inv.component.lcsc_part_no} • {inv.component.value} • {inv.component.footprint}
-                                    </div>
-                                </div>
-                            ))}
-                            {filteredInventory.length === 0 && (
-                                <div className="text-center text-muted-foreground py-8">No matching items found.</div>
-                            )}
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setIsSearchOpen(false)}>Cancel</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <BomSearchDialog
+                open={isSearchOpen}
+                onOpenChange={setIsSearchOpen}
+                searchQuery={searchQuery}
+                onSearchQueryChange={setSearchQuery}
+                filteredInventory={filteredInventory}
+                onMatchSelect={handleMatchSelect}
+            />
 
-            {/* Soldering Summary Dialog */}
-            <Dialog open={isSolderingSummaryOpen} onOpenChange={setIsSolderingSummaryOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Confirm Soldering Completion</DialogTitle>
-                        <DialogDescription>
-                            The following parts will be subtracted from inventory based on your 'Placed' or 'Soldered'
-                            marks.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="my-4 max-h-64 overflow-y-auto border rounded-md">
-                        <table className="w-full text-sm">
-                            <thead className="bg-secondary text-xs uppercase">
-                            <tr>
-                                <th className="p-2 text-left">Part</th>
-                                <th className="p-2 text-center">Qty to Subtract</th>
-                            </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                            {solderingSummary.map(( item, idx ) => (
-                                <tr key={idx}>
-                                    <td className="p-2">{item.name}</td>
-                                    <td className="p-2 text-center">
-                                        <Input
-                                            type="number"
-                                            className="w-20 h-8 text-center mx-auto"
-                                            value={item.quantity}
-                                            onChange={( e ) => {
-                                                const val = parseInt(e.target.value) || 0
-                                                setSolderingSummary(prev => prev.map(( p, i ) => i === idx ? {
-                                                    ...p,
-                                                    quantity: val,
-                                                } : p))
-                                            }}
-                                        />
-                                    </td>
-                                </tr>
-                            ))}
-                            {solderingSummary.length === 0 && (
-                                <tr>
-                                    <td colSpan={2} className="p-4 text-center text-muted-foreground">No parts marked
-                                        for subtraction.
-                                    </td>
-                                </tr>
-                            )}
-                            </tbody>
-                        </table>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setIsSolderingSummaryOpen(false)}>Cancel</Button>
-                        <Button onClick={() => { void confirmSolderingSubtract() }} disabled={loading}>
-                            {loading ? 'Processing...' : 'Confirm & Update Stock'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <BomSolderingSummaryDialog
+                open={isSolderingSummaryOpen}
+                onOpenChange={setIsSolderingSummaryOpen}
+                solderingSummary={solderingSummary}
+                setSolderingSummary={setSolderingSummary}
+                loading={loading}
+                confirmSolderingSubtract={confirmSolderingSubtract}
+            />
 
-            {/* Order Review Dialog */}
-            <Dialog open={isOrderOpen} onOpenChange={setIsOrderOpen}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Review Order</DialogTitle>
-                        <DialogDescription>
-                            Review the items to be ordered. Quantities calculated based on {pcbCount} PCBs.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="my-4 max-h-96 overflow-y-auto border rounded-md">
-                        <table className="w-full text-sm">
-                            <thead className="bg-secondary text-xs uppercase sticky top-0">
-                            <tr>
-                                <th className="p-2 text-left">LCSC Part #</th>
-                                <th className="p-2 text-center">Needed</th>
-                                <th className="p-2 text-center">In Stock</th>
-                                <th className="p-2 text-center">To Order</th>
-                            </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                            {orderList.map(( item, idx ) => (
-                                <tr key={idx}>
-                                    <td className="p-2 font-mono text-blue-400">{item.lcscPartNumber}</td>
-                                    <td className="p-2 text-center">{item.needed}</td>
-                                    <td className="p-2 text-center text-muted-foreground">{item.stock}</td>
-                                    <td className="p-2 text-center">
-                                        <Input
-                                            type="number"
-                                            className="w-20 h-8 text-center mx-auto"
-                                            value={item.toOrder}
-                                            onChange={( e ) => {
-                                                const val = parseInt(e.target.value) || 0
-                                                setOrderList(prev => prev.map(( p, i ) => i === idx ? {
-                                                    ...p,
-                                                    toOrder: val,
-                                                } : p))
-                                            }}
-                                        />
-                                    </td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setIsOrderOpen(false)}>Cancel</Button>
-                        <Button onClick={() => { void handleLcscExport() }}
-                                className="bg-blue-600 hover:bg-blue-700 text-white">
-                            <ShoppingCart className="w-4 h-4 mr-2"/>
-                            Order on LCSC
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <BomOrderDialog
+                open={isOrderOpen}
+                onOpenChange={setIsOrderOpen}
+                pcbCount={pcbCount}
+                orderList={orderList}
+                setOrderList={setOrderList}
+                handleLcscExport={handleLcscExport}
+            />
         </div>
     )
 }
