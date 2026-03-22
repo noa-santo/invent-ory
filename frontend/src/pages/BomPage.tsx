@@ -158,13 +158,22 @@ export default function BomPage() {
         const matchedData = bomData.map(item => {
             if (item.manualMatch && item.matchedInventoryItem) return item
 
+            // 1. Exact Match (LCSC Part Number)
             let match = inventory.find(inv =>
                 inv.component.lcsc_part_no &&
                 item.lcscPartNumber &&
                 inv.component.lcsc_part_no.trim().toLowerCase() === item.lcscPartNumber.trim().toLowerCase(),
             )
 
-            if (!match && !item.lcscPartNumber) {
+            // 2. Name Match (as per spec)
+            if (!match) {
+                match = inventory.find(inv =>
+                    inv.component.name && item.value && inv.component.name.trim().toLowerCase() === item.value.trim().toLowerCase(),
+                )
+            }
+
+            // 3. Fuzzy Match (Value & Footprint)
+            if (!match) {
                 match = inventory.find(inv =>
                     (inv.component.value && item.value && inv.component.value.toLowerCase() === item.value.toLowerCase()) &&
                     (inv.component.footprint && item.footprint && inv.component.footprint.toLowerCase().includes(item.footprint.toLowerCase())),
@@ -191,9 +200,9 @@ export default function BomPage() {
             const q = searchQuery.toLowerCase()
             setFilteredInventory(inventory.filter(i =>
                 i.component.name.toLowerCase().includes(q) ||
-                i.component.lcsc_part_no?.toLowerCase().includes(q) ||
-                i.component.value?.toLowerCase().includes(q) ||
-                i.component.footprint?.toLowerCase().includes(q),
+                (i.component.lcsc_part_no && i.component.lcsc_part_no.toLowerCase().includes(q)) ||
+                (i.component.value && i.component.value.toLowerCase().includes(q)) ||
+                (i.component.footprint && i.component.footprint.toLowerCase().includes(q)),
             ))
         }
     }, [searchQuery, inventory])
@@ -206,7 +215,23 @@ export default function BomPage() {
             const text = await file.text()
             const lines = text.split('\n')
 
-            items = lines.slice(1).filter(l => l.trim() !== '').map(( line, idx ) => {
+            // Basic CSV parsing logic assuming EasyEDA/JLC style BOM
+            // We check the first few lines to find headers
+            const headerLineIdx = lines.findIndex(l => l.toLowerCase().includes('designator') && l.toLowerCase().includes('quantity'))
+            if (headerLineIdx === -1) {
+                alert('Could not find header row in CSV. Expected \'Designator\' and \'Quantity\' columns.')
+                return
+            }
+
+            const headerRow = lines[headerLineIdx].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase())
+            const designatorIdx = headerRow.findIndex(h => h === 'designator')
+            const quantityIdx = headerRow.findIndex(h => h === 'quantity')
+            const footprintIdx = headerRow.findIndex(h => h === 'footprint')
+            const valueIdx = headerRow.findIndex(h => h === 'value' || h === 'comment') // EasyEDA uses 'Comment' for value often
+            const lcscIdx = headerRow.findIndex(h => h === 'supplier part' || h.includes('lcsc')) // 'Supplier Part' usually has the LCSC code
+
+            items = lines.slice(headerLineIdx + 1).filter(l => l.trim() !== '').map(( line, idx ) => {
+                // Handle CSV split with quotes
                 const row: string[] = []
                 let current = ''
                 let inQuote = false
@@ -223,13 +248,16 @@ export default function BomPage() {
                 }
                 row.push(current)
 
+                // Helper to clean quotes
+                const getVal = ( i: number ) => row[i]?.trim().replace(/^"|"$/g, '') || ''
+
                 return {
                     id: `bom-${Date.now()}-${idx}`,
-                    quantity: parseInt(row[1] || '0'),
-                    designator: row[3]?.replace(/"/g, '') || '',
-                    footprint: row[4] || '',
-                    value: row[5] || '',
-                    lcscPartNumber: row[8] || '',
+                    quantity: parseInt(getVal(quantityIdx)) || 0,
+                    designator: getVal(designatorIdx),
+                    footprint: getVal(footprintIdx),
+                    value: getVal(valueIdx),
+                    lcscPartNumber: getVal(lcscIdx),
                     placed: false,
                     soldered: false,
                 }
@@ -237,12 +265,13 @@ export default function BomPage() {
 
         } else {
             const rows = await readXlsxFile(file)
-            const headerRow = rows[0] as string[]
-            const designatorIdx = headerRow.findIndex(h => h?.toString().toLowerCase().includes('designator'))
-            const quantityIdx = headerRow.findIndex(h => h?.toString().toLowerCase().includes('quantity'))
-            const footprintIdx = headerRow.findIndex(h => h?.toString().toLowerCase().includes('footprint'))
-            const valueIdx = headerRow.findIndex(h => h?.toString().toLowerCase().includes('value') || h?.toString().toLowerCase().includes('comment'))
-            const lcscIdx = headerRow.findIndex(h => h?.toString().toLowerCase().includes('supplier part') || h?.toString().toLowerCase().includes('lcsc'))
+            const headerRow = rows[0].map(cell => cell?.toString().toLowerCase() || '')
+
+            const designatorIdx = headerRow.findIndex(h => h.includes('designator'))
+            const quantityIdx = headerRow.findIndex(h => h.includes('quantity'))
+            const footprintIdx = headerRow.findIndex(h => h.includes('footprint'))
+            const valueIdx = headerRow.findIndex(h => h.includes('value') || h.includes('comment'))
+            const lcscIdx = headerRow.findIndex(h => h.includes('supplier part') || h.includes('lcsc'))
 
             items = rows.slice(1).map(( row: any, index: number ) => ({
                 id: `bom-${Date.now()}-${index}`,
@@ -255,6 +284,9 @@ export default function BomPage() {
                 soldered: false,
             }))
         }
+
+        // Filter out empty lines
+        items = items.filter(i => i.designator && i.quantity > 0)
 
         setBomData(items)
         setBomName(file.name)
@@ -761,8 +793,10 @@ export default function BomPage() {
                                     <td className="p-3">
                                         {match ? (
                                             <div className="flex flex-col">
+                                                <div
+                                                    className="text-sm font-medium text-slate-200">{match.component.name}</div>
                                                 <Badge variant="outline"
-                                                       className={`${isMissing ? 'text-red-400 border-red-500/30' : 'text-green-400 border-green-500/30'}`}>
+                                                       className={`${isMissing ? 'text-red-400 border-red-500/30' : 'text-green-400 border-green-500/30'} mt-1`}>
                                                     {inStock} in stock
                                                 </Badge>
                                                 <span
