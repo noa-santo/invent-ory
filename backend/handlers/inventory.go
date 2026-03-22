@@ -8,6 +8,7 @@ import (
 	"github.com/noa-santo/invent-ory/backend/database"
 	"github.com/noa-santo/invent-ory/backend/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ListInventory returns all inventory items with their Component and Box associations
@@ -236,7 +237,7 @@ func UpsertByLCSC(c *gin.Context) {
 type batchSubtractRequest struct {
 	Items []struct {
 		InventoryItemID uint `json:"inventory_item_id"`
-		Quantity        int  `json:"quantity"`
+		Quantity        int  `json:"quantity" binding:"gte=0"`
 	} `json:"items"`
 }
 
@@ -248,6 +249,14 @@ func BatchSubtractInventory(c *gin.Context) {
 		return
 	}
 
+	// Defensive runtime check for negative quantities
+	for _, item := range req.Items {
+		if item.Quantity < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "negative quantity not allowed", "message": "all quantities must be non-negative"})
+			return
+		}
+	}
+
 	tx := database.DB.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -257,7 +266,7 @@ func BatchSubtractInventory(c *gin.Context) {
 
 	for _, reqItem := range req.Items {
 		var item models.InventoryItem
-		if err := tx.Set("gorm:query_option", "FOR UPDATE").First(&item, reqItem.InventoryItemID).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&item, reqItem.InventoryItemID).Error; err != nil {
 			tx.Rollback()
 			if err == gorm.ErrRecordNotFound {
 				c.JSON(http.StatusNotFound, gin.H{"error": "item not found", "message": "one or more inventory items not found"})
