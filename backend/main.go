@@ -58,6 +58,7 @@ func main() {
 			inventory.PUT("/:id", handlers.UpdateInventoryItem)
 			inventory.DELETE("/:id", handlers.DeleteInventoryItem)
 			inventory.POST("/upsert-by-lcsc", handlers.UpsertByLCSC)
+			inventory.POST("/batch-subtract", handlers.BatchSubtractInventory)
 		}
 
 		// LCSC
