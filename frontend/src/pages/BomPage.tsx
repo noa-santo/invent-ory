@@ -7,14 +7,26 @@ import { Badge } from '@/components/ui/badge'
 import {
     AlertCircle,
     CheckCircle2,
+    FileText,
     Flame,
+    History,
+    Plus,
     Search,
     Settings,
     ShoppingCart,
     Trash2,
     UploadCloud,
+    X,
     Zap,
 } from 'lucide-react'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import * as api from '../services/api'
 import { InventoryItem } from '@/types'
 
@@ -33,34 +45,81 @@ interface BomItem {
     soldered?: boolean;
 }
 
+interface SavedBom {
+    name: string;
+    date: string;
+    data: BomItem[];
+}
+
+interface SolderingSummaryItem {
+    id: number;
+    name: string;
+    quantity: number;
+}
+
+interface OrderItem {
+    lcscPartNumber: string;
+    quantity: number;
+    stock: number;
+    needed: number;
+    toOrder: number;
+}
+
 export default function BomPage() {
     const [bomData, setBomData] = useState<BomItem[] | null>(null)
+    const [bomName, setBomName] = useState<string>('Untitled BOM')
     const [pcbCount, setPcbCount] = useState<number>(1)
     const [isSolderingMode, setIsSolderingMode] = useState<boolean>(false)
-    const [recentBoms, setRecentBoms] = useState<string[]>([])
+    const [savedBoms, setSavedBoms] = useState<SavedBom[]>([])
     const [confirmSubtract, setConfirmSubtract] = useState(false)
     const [inventory, setInventory] = useState<InventoryItem[]>([])
     const [loading, setLoading] = useState(false)
+
+    // Manual Matching State
+    const [isSearchOpen, setIsSearchOpen] = useState(false)
+    const [matchingItemId, setMatchingItemId] = useState<string | null>(null)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([])
+
+    // Soldering Summary State
+    const [isSolderingSummaryOpen, setIsSolderingSummaryOpen] = useState(false)
+    const [solderingSummary, setSolderingSummary] = useState<SolderingSummaryItem[]>([])
+
+    // Order Dialog State
+    const [isOrderOpen, setIsOrderOpen] = useState(false)
+    const [orderList, setOrderList] = useState<OrderItem[]>([])
 
     // Load state
     useEffect(() => {
         const savedBom = localStorage.getItem('currentBom')
         if (savedBom) {
             try {
-                setBomData(JSON.parse(savedBom))
+                const parsed = JSON.parse(savedBom)
+                setBomData(parsed.data)
+                setBomName(parsed.name || 'Untitled BOM')
             } catch (e) {
                 console.error('Failed to parse saved BOM', e)
             }
         }
 
+        const savedHistory = localStorage.getItem('recentBomsHistory')
+        if (savedHistory) {
+            try {
+                setSavedBoms(JSON.parse(savedHistory))
+            } catch (e) {
+                console.error(e)
+            }
+        }
+
         // Load inventory for matching
-        loadInventory()
+        void loadInventory()
     }, [])
 
     async function loadInventory() {
         try {
             const inv = await api.getInventory()
             setInventory(inv)
+            setFilteredInventory(inv)
         } catch (e) {
             console.error('Failed to load inventory', e)
         }
@@ -69,11 +128,28 @@ export default function BomPage() {
     // Save state
     useEffect(() => {
         if (bomData) {
-            localStorage.setItem('currentBom', JSON.stringify(bomData))
+            localStorage.setItem('currentBom', JSON.stringify({name: bomName, data: bomData}))
         } else {
             localStorage.removeItem('currentBom')
         }
-    }, [bomData])
+    }, [bomData, bomName])
+
+    const saveToHistory = ( name: string, data: BomItem[] ) => {
+        const newItem = {name, date: new Date().toISOString(), data}
+        setSavedBoms(prev => {
+            const filtered = prev.filter(b => b.name !== name)
+            const updated = [newItem, ...filtered].slice(0, 5) // Keep last 5
+            localStorage.setItem('recentBomsHistory', JSON.stringify(updated))
+            return updated
+        })
+    }
+
+    const loadFromHistory = ( saved: SavedBom ) => {
+        setBomData(saved.data)
+        setBomName(saved.name)
+        setPcbCount(1)
+        setIsSolderingMode(false)
+    }
 
     // Match BOM items with Inventory
     useEffect(() => {
@@ -107,9 +183,24 @@ export default function BomPage() {
         }
     }, [inventory, bomData?.length])
 
+    // Filter inventory when search query changes
+    useEffect(() => {
+        if (!searchQuery) {
+            setFilteredInventory(inventory)
+        } else {
+            const q = searchQuery.toLowerCase()
+            setFilteredInventory(inventory.filter(i =>
+                i.component.name.toLowerCase().includes(q) ||
+                i.component.lcsc_part_no?.toLowerCase().includes(q) ||
+                i.component.value?.toLowerCase().includes(q) ||
+                i.component.footprint?.toLowerCase().includes(q),
+            ))
+        }
+    }, [searchQuery, inventory])
+
 
     const parseFile = async ( file: File ) => {
-        let items: BomItem[] = []
+        let items: BomItem[]
 
         if (file.name.endsWith('.csv')) {
             const text = await file.text()
@@ -133,7 +224,7 @@ export default function BomPage() {
                 row.push(current)
 
                 return {
-                    id: `bom-${idx}`,
+                    id: `bom-${Date.now()}-${idx}`,
                     quantity: parseInt(row[1] || '0'),
                     designator: row[3]?.replace(/"/g, '') || '',
                     footprint: row[4] || '',
@@ -154,7 +245,7 @@ export default function BomPage() {
             const lcscIdx = headerRow.findIndex(h => h?.toString().toLowerCase().includes('supplier part') || h?.toString().toLowerCase().includes('lcsc'))
 
             items = rows.slice(1).map(( row: any, index: number ) => ({
-                id: `bom-${index}`,
+                id: `bom-${Date.now()}-${index}`,
                 designator: row[designatorIdx > -1 ? designatorIdx : 3]?.toString() || '',
                 footprint: row[footprintIdx > -1 ? footprintIdx : 4]?.toString() || '',
                 quantity: parseInt(row[quantityIdx > -1 ? quantityIdx : 1]?.toString() || '0'),
@@ -166,6 +257,8 @@ export default function BomPage() {
         }
 
         setBomData(items)
+        setBomName(file.name)
+        saveToHistory(file.name, items)
     }
 
     const handleFileUpload = async ( e: React.ChangeEvent<HTMLInputElement> ) => {
@@ -183,6 +276,7 @@ export default function BomPage() {
         setBomData(null)
         setIsSolderingMode(false)
         setPcbCount(1)
+        localStorage.removeItem('currentBom')
     }
 
     const calculateMaxPossible = () => {
@@ -228,71 +322,7 @@ export default function BomPage() {
         }
     }
 
-    const handleSolderingFinish = async () => {
-        if (!bomData) return
-        if (!confirm('Are you sure you want to finish and subtract matched components marked as Placed/Soldered from inventory?')) return
-
-        setLoading(true)
-        try {
-            alert('Soldering completion not fully implemented in this step. Use Quick Subtract for batch updates.')
-        } catch (e) {
-            console.error(e)
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const handleLcscExport = async () => {
-        if (!bomData) return
-        const missing = bomData.filter(item => {
-            const stock = item.matchedInventoryItem?.quantity || 0
-            const needed = item.quantity * pcbCount
-            return stock < needed
-        })
-
-        if (missing.length === 0) {
-            alert('No missing parts!')
-            return
-        }
-
-        // Generate CSV for LCSC BOM Tool
-        const csvContent = 'data:text/csv;charset=utf-8,'
-            + 'LCSC Part No,Quantity\n'
-            + missing.map(item => `${item.lcscPartNumber},${(item.quantity * pcbCount) - (item.matchedInventoryItem?.quantity || 0)}`).join('\n')
-
-        const textForClipboard = missing.map(item => `${item.lcscPartNumber},${(item.quantity * pcbCount) - (item.matchedInventoryItem?.quantity || 0)}`).join('\n')
-
-        // Copy to clipboard
-        try {
-            await navigator.clipboard.writeText(textForClipboard)
-            alert('Missing parts copied to clipboard! Opening LCSC BOM Tool. Paste the data or upload the downloaded CSV.')
-        } catch (err) {
-            console.error('Failed to copy: ', err)
-            alert('Opening LCSC BOM Tool. Please upload the downloaded CSV.')
-        }
-
-        // Download CSV
-        const encodedUri = encodeURI(csvContent)
-        const link = document.createElement('a')
-        link.setAttribute('href', encodedUri)
-        link.setAttribute('download', 'lcsc_order.csv')
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-
-        // Open LCSC BOM tool
-        window.open('https://www.lcsc.com/bom.html', '_blank')
-    }
-
-
-    // --- View Logic ---
-
-    const getDisplayData = () => {
-        if (!bomData) return []
-        return bomData
-    }
-
-    // New state for soldering progress
+    // Soldering Mode Logic
     const [solderingStatus, setSolderingStatus] = useState<Record<string, { placed: boolean, soldered: boolean }>>({})
 
     const toggleSolderingStatus = ( designator: string, field: 'placed' | 'soldered' ) => {
@@ -305,9 +335,228 @@ export default function BomPage() {
         }))
     }
 
+    const prepareSolderingSummary = () => {
+        if (!bomData) return
+
+        const summaryMap = new Map<number, SolderingSummaryItem>()
+
+        // Flatten BOM to designators
+        bomData.forEach(item => {
+            if (!item.matchedInventoryItem) return
+
+            const designators = item.designator.split(/[, ]+/).filter(d => d.trim() !== '')
+
+            designators.forEach(d => {
+                const status = solderingStatus[d]
+                // If marked as placed or soldered, count it
+                if (status?.placed || status?.soldered) {
+                    const invId = item.matchedInventoryItem!.id
+                    const current = summaryMap.get(invId) || {
+                        id: invId,
+                        name: item.matchedInventoryItem!.component.name,
+                        quantity: 0,
+                    }
+                    current.quantity += 1
+                    summaryMap.set(invId, current)
+                }
+            })
+        })
+
+        const summary = Array.from(summaryMap.values())
+        setSolderingSummary(summary)
+        setIsSolderingSummaryOpen(true)
+    }
+
+    const confirmSolderingSubtract = async () => {
+        setLoading(true)
+        try {
+            const itemsToSubtract = solderingSummary.map(s => ({
+                inventory_item_id: s.id,
+                quantity: s.quantity,
+            }))
+
+            if (itemsToSubtract.length > 0) {
+                await api.batchSubtractInventory(itemsToSubtract)
+                await loadInventory()
+            }
+
+            // Clear status for next PCB
+            setSolderingStatus({})
+            setIsSolderingSummaryOpen(false)
+            alert('Inventory updated and soldering status cleared for next PCB.')
+
+        } catch (e) {
+            console.error(e)
+            alert('Failed to subtract: ' + String(e))
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Ordering Workflow
+    const prepareOrder = () => {
+        if (!bomData) return
+
+        // Find missing parts
+        const list: OrderItem[] = []
+        bomData.forEach(item => {
+            // If item has a match, check stock. If no match, we definitely need it.
+            const stock = item.matchedInventoryItem?.quantity || 0
+            const needed = item.quantity * pcbCount
+            const missing = Math.max(0, needed - stock)
+
+            if (missing > 0 || !item.matchedInventoryItem) {
+                // Deduplicate by LCSC part number if possible, or keep separate?
+                // Spec says "Order List". LCSC needs combined quantities per part number.
+
+                const partNo = item.lcscPartNumber || item.matchedInventoryItem?.component.lcsc_part_no || item.designator // Fallback
+
+                const existing = list.find(l => l.lcscPartNumber === partNo && partNo !== '')
+                if (existing) {
+                    existing.needed += needed
+                    existing.stock += stock // This might double count stock if multiple bom items map to same inventory?
+                                            // Actually, if multiple bom items map to same inventory, they share the stock.
+                                            // This logic is a bit complex. 
+                                            // Simplified: just list items as they are in BOM, user can manually merge?
+                                            // Or better: aggregate by Part Number.
+                } else {
+                    list.push({
+                        lcscPartNumber: partNo,
+                        needed: needed,
+                        stock: stock,
+                        quantity: 1, // Placeholder
+                        toOrder: missing,
+                    })
+                }
+            }
+        })
+
+        // Fix aggregation for shared stock?
+        // If multiple BOM items point to same LCSC Part, the "stock" is the same pool.
+        // So Needed = sum(needed_i), Stock = stock_pool. ToOrder = max(0, Needed - Stock).
+        // Let's re-calculate cleanly.
+
+        const aggregated = new Map<string, { needed: number, stock: number, lcsc: string }>()
+
+        bomData.forEach(item => {
+            const lcsc = item.lcscPartNumber || item.matchedInventoryItem?.component.lcsc_part_no
+            if (!lcsc) return // Skip items without LCSC part number for LCSC order (or handle separately?)
+
+            // If we have a match, we know the stock.
+            // BEWARE: item.matchedInventoryItem.quantity is the TOTAL stock of that item.
+            // If we iterate BOM items, we shouldn't sum up the stock multiple times for the same part.
+
+            const current = aggregated.get(lcsc) || {needed: 0, stock: item.matchedInventoryItem?.quantity || 0, lcsc}
+            current.needed += (item.quantity * pcbCount)
+            // Update stock just in case (should be same for same LCSC)
+            if (item.matchedInventoryItem) current.stock = item.matchedInventoryItem.quantity
+
+            aggregated.set(lcsc, current)
+        })
+
+        const finalOrderList: OrderItem[] = []
+        aggregated.forEach(val => {
+            if (val.needed > val.stock) {
+                finalOrderList.push({
+                    lcscPartNumber: val.lcsc,
+                    needed: val.needed,
+                    stock: val.stock,
+                    quantity: 0, // unused
+                    toOrder: val.needed - val.stock,
+                })
+            }
+        })
+
+        setOrderList(finalOrderList)
+        setIsOrderOpen(true)
+    }
+
+    const handleLcscExport = async () => {
+        if (orderList.length === 0) {
+            alert('Order list is empty.')
+            return
+        }
+
+        const csvContent = 'data:text/csv;charset=utf-8,'
+            + 'LCSC Part No,Quantity\n'
+            + orderList.map(item => `${item.lcscPartNumber},${item.toOrder}`).join('\n')
+
+        const textForClipboard = orderList.map(item => `${item.lcscPartNumber},${item.toOrder}`).join('\n')
+
+        try {
+            await navigator.clipboard.writeText(textForClipboard)
+            alert('Order copied to clipboard! Opening LCSC BOM Tool. Paste the data or upload the downloaded CSV.')
+        } catch (err) {
+            console.error('Failed to copy: ', err)
+            alert('Opening LCSC BOM Tool. Please upload the downloaded CSV.')
+        }
+
+        const encodedUri = encodeURI(csvContent)
+        const link = document.createElement('a')
+        link.setAttribute('href', encodedUri)
+        link.setAttribute('download', 'lcsc_order.csv')
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.open('https://www.lcsc.com/bom.html', '_blank')
+        setIsOrderOpen(false)
+    }
+
+    // BOM Editing
+    const handleDeleteItem = ( itemId: string ) => {
+        if (!bomData) return
+        setBomData(bomData.filter(i => i.id !== itemId))
+    }
+
+    const handleAddItem = () => {
+        if (!bomData) return
+        const des = prompt('Enter Designator (e.g. R1):')
+        if (!des) return
+
+        const newItem: BomItem = {
+            id: `manual-${Date.now()}`,
+            designator: des,
+            footprint: '',
+            quantity: 1,
+            value: '',
+            lcscPartNumber: '',
+            placed: false,
+            soldered: false,
+        }
+        setBomData([...bomData, newItem])
+    }
+
+    // Manual Matching
+    const openMatchDialog = ( itemId: string ) => {
+        setMatchingItemId(itemId)
+        setSearchQuery('')
+        setIsSearchOpen(true)
+    }
+
+    const handleMatchSelect = ( invItem: InventoryItem ) => {
+        if (!bomData || !matchingItemId) return
+        setBomData(bomData.map(item => {
+            if (item.id === matchingItemId) {
+                return {
+                    ...item,
+                    matchedInventoryItem: invItem,
+                    manualMatch: true,
+                    value: item.value || invItem.component.value || '',
+                    footprint: item.footprint || invItem.component.footprint || '',
+                    lcscPartNumber: item.lcscPartNumber || invItem.component.lcsc_part_no || '',
+                }
+            }
+            return item
+        }))
+        setIsSearchOpen(false)
+        setMatchingItemId(null)
+    }
+
+    // --- View Logic ---
+
     const displayItems = isSolderingMode
         ? bomData?.flatMap(item => {
-        const designators = item.designator.split(/,| /).filter(d => d.trim() !== '')
+        const designators = item.designator.split(/[, ]+/).filter(d => d.trim() !== '')
         if (designators.length > 0) {
             return designators.map(d => ({
                 ...item,
@@ -342,6 +591,30 @@ export default function BomPage() {
                         <p className="text-sm text-muted-foreground mt-1">Support for .xlsx and .csv files</p>
                     </div>
                 </Card>
+
+                {savedBoms.length > 0 && (
+                    <div className="mt-8">
+                        <h2 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
+                            <History className="w-5 h-5"/> Recent BOMs
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {savedBoms.map(( saved, idx ) => (
+                                <Card key={idx} className="p-4 hover:bg-secondary/20 cursor-pointer transition-colors"
+                                      onClick={() => loadFromHistory(saved)}>
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <div className="font-medium text-slate-200">{saved.name}</div>
+                                            <div className="text-xs text-muted-foreground mt-1">
+                                                {new Date(saved.date).toLocaleDateString()} • {saved.data.length} components
+                                            </div>
+                                        </div>
+                                        <FileText className="w-8 h-8 text-muted-foreground/50"/>
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         )
     }
@@ -357,7 +630,7 @@ export default function BomPage() {
                 className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card/50 p-4 rounded-xl border border-border">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-                        BOM Manager
+                        {bomName}
                         {isSolderingMode &&
                             <Badge variant="default" className="bg-orange-500/20 text-orange-400 border-orange-500/50">Soldering
                                 Mode</Badge>}
@@ -368,8 +641,8 @@ export default function BomPage() {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="destructive" size="sm" onClick={handleClearBom}>
-                        <Trash2 className="w-4 h-4 mr-2"/>
-                        Exit BOM
+                        <X className="w-4 h-4 mr-2"/>
+                        Close BOM
                     </Button>
                 </div>
             </div>
@@ -413,7 +686,7 @@ export default function BomPage() {
                             variant={confirmSubtract ? 'destructive' : 'secondary'}
                             onClick={() => {
                                 if (confirmSubtract) {
-                                    handleQuickSubtract()
+                                    void handleQuickSubtract()
                                 } else {
                                     setConfirmSubtract(true)
                                 }
@@ -433,7 +706,7 @@ export default function BomPage() {
                         </Button>
 
                         {isSolderingMode && (
-                            <Button className="ml-auto bg-blue-600 hover:bg-blue-700" onClick={handleSolderingFinish}>
+                            <Button className="ml-auto bg-blue-600 hover:bg-blue-700" onClick={prepareSolderingSummary}>
                                 <CheckCircle2 className="w-4 h-4 mr-2"/>
                                 Finish & Subtract
                             </Button>
@@ -462,15 +735,12 @@ export default function BomPage() {
                         </thead>
                         <tbody className="divide-y divide-border/50">
                         {displayItems.map(( item, idx ) => {
-                            // Handle expanded vs grouped items
-                            // If expanded, item has `uniqueDesignator`
                             const designator = (item as any).uniqueDesignator || item.designator
                             const needed = item.quantity * pcbCount
                             const match = item.matchedInventoryItem
                             const inStock = match ? match.quantity : 0
                             const isMissing = needed > inStock
 
-                            // Soldering status
                             const sStatus = solderingStatus[designator] || {placed: false, soldered: false}
 
                             return (
@@ -527,10 +797,18 @@ export default function BomPage() {
                                     )}
                                     <td className="p-3 text-right">
                                         {!isSolderingMode && (
-                                            <Button size="icon" variant="ghost"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-white">
-                                                <Search className="w-4 h-4"/>
-                                            </Button>
+                                            <div className="flex justify-end gap-2">
+                                                <Button size="icon" variant="ghost"
+                                                        onClick={() => openMatchDialog(item.id)}
+                                                        className="h-8 w-8 text-muted-foreground hover:text-white">
+                                                    <Search className="w-4 h-4"/>
+                                                </Button>
+                                                <Button size="icon" variant="ghost"
+                                                        onClick={() => handleDeleteItem(item.id)}
+                                                        className="h-8 w-8 text-muted-foreground hover:text-red-400">
+                                                    <Trash2 className="w-4 h-4"/>
+                                                </Button>
+                                            </div>
                                         )}
                                     </td>
                                 </tr>
@@ -544,6 +822,10 @@ export default function BomPage() {
                 {!isSolderingMode && (
                     <div className="p-4 border-t border-border bg-secondary/20 flex justify-between items-center">
                         <div className="flex items-center gap-3">
+                            <Button size="sm" variant="outline" onClick={handleAddItem}>
+                                <Plus className="w-4 h-4 mr-2"/> Add Item
+                            </Button>
+                            <div className="h-6 w-px bg-border mx-2"/>
                             <div
                                 className={`${missingCount > 0 ? 'bg-red-500/10' : 'bg-green-500/10'} p-2 rounded-full`}>
                                 <AlertCircle
@@ -558,14 +840,164 @@ export default function BomPage() {
                             </div>
                         </div>
                         {missingCount > 0 && (
-                            <Button onClick={handleLcscExport} className="bg-blue-600 hover:bg-blue-700 text-white">
+                            <Button onClick={prepareOrder} className="bg-blue-600 hover:bg-blue-700 text-white">
                                 <ShoppingCart className="w-4 h-4 mr-2"/>
-                                Copy & Export Order
+                                Review & Order
                             </Button>
                         )}
                     </div>
                 )}
             </Card>
+
+            {/* Search Dialog */}
+            <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Select Component</DialogTitle>
+                        <DialogDescription>Search inventory to manually match this BOM item.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 my-4">
+                        <Input
+                            placeholder="Search by name, LCSC part #, value..."
+                            value={searchQuery}
+                            onChange={( e ) => setSearchQuery(e.target.value)}
+                        />
+                        <div className="h-64 overflow-y-auto border rounded-md p-2 space-y-2">
+                            {filteredInventory.map(inv => (
+                                <div key={inv.id}
+                                     onClick={() => handleMatchSelect(inv)}
+                                     className="p-3 hover:bg-secondary cursor-pointer rounded border border-transparent hover:border-border transition-all">
+                                    <div className="flex justify-between items-center">
+                                        <div className="font-semibold text-sm">{inv.component.name}</div>
+                                        <Badge variant="outline">{inv.quantity} in stock</Badge>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                        {inv.component.lcsc_part_no} • {inv.component.value} • {inv.component.footprint}
+                                    </div>
+                                </div>
+                            ))}
+                            {filteredInventory.length === 0 && (
+                                <div className="text-center text-muted-foreground py-8">No matching items found.</div>
+                            )}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setIsSearchOpen(false)}>Cancel</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Soldering Summary Dialog */}
+            <Dialog open={isSolderingSummaryOpen} onOpenChange={setIsSolderingSummaryOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm Soldering Completion</DialogTitle>
+                        <DialogDescription>
+                            The following parts will be subtracted from inventory based on your 'Placed' or 'Soldered'
+                            marks.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="my-4 max-h-64 overflow-y-auto border rounded-md">
+                        <table className="w-full text-sm">
+                            <thead className="bg-secondary text-xs uppercase">
+                            <tr>
+                                <th className="p-2 text-left">Part</th>
+                                <th className="p-2 text-center">Qty to Subtract</th>
+                            </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                            {solderingSummary.map(( item, idx ) => (
+                                <tr key={idx}>
+                                    <td className="p-2">{item.name}</td>
+                                    <td className="p-2 text-center">
+                                        <Input
+                                            type="number"
+                                            className="w-20 h-8 text-center mx-auto"
+                                            value={item.quantity}
+                                            onChange={( e ) => {
+                                                const val = parseInt(e.target.value) || 0
+                                                setSolderingSummary(prev => prev.map(( p, i ) => i === idx ? {
+                                                    ...p,
+                                                    quantity: val,
+                                                } : p))
+                                            }}
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                            {solderingSummary.length === 0 && (
+                                <tr>
+                                    <td colSpan={2} className="p-4 text-center text-muted-foreground">No parts marked
+                                        for subtraction.
+                                    </td>
+                                </tr>
+                            )}
+                            </tbody>
+                        </table>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setIsSolderingSummaryOpen(false)}>Cancel</Button>
+                        <Button onClick={() => { void confirmSolderingSubtract() }} disabled={loading}>
+                            {loading ? 'Processing...' : 'Confirm & Update Stock'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Order Review Dialog */}
+            <Dialog open={isOrderOpen} onOpenChange={setIsOrderOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Review Order</DialogTitle>
+                        <DialogDescription>
+                            Review the items to be ordered. Quantities calculated based on {pcbCount} PCBs.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="my-4 max-h-96 overflow-y-auto border rounded-md">
+                        <table className="w-full text-sm">
+                            <thead className="bg-secondary text-xs uppercase sticky top-0">
+                            <tr>
+                                <th className="p-2 text-left">LCSC Part #</th>
+                                <th className="p-2 text-center">Needed</th>
+                                <th className="p-2 text-center">In Stock</th>
+                                <th className="p-2 text-center">To Order</th>
+                            </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                            {orderList.map(( item, idx ) => (
+                                <tr key={idx}>
+                                    <td className="p-2 font-mono text-blue-400">{item.lcscPartNumber}</td>
+                                    <td className="p-2 text-center">{item.needed}</td>
+                                    <td className="p-2 text-center text-muted-foreground">{item.stock}</td>
+                                    <td className="p-2 text-center">
+                                        <Input
+                                            type="number"
+                                            className="w-20 h-8 text-center mx-auto"
+                                            value={item.toOrder}
+                                            onChange={( e ) => {
+                                                const val = parseInt(e.target.value) || 0
+                                                setOrderList(prev => prev.map(( p, i ) => i === idx ? {
+                                                    ...p,
+                                                    toOrder: val,
+                                                } : p))
+                                            }}
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setIsOrderOpen(false)}>Cancel</Button>
+                        <Button onClick={() => { void handleLcscExport() }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white">
+                            <ShoppingCart className="w-4 h-4 mr-2"/>
+                            Order on LCSC
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
