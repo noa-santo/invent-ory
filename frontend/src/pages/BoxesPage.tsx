@@ -1,5 +1,5 @@
-import * as React from 'react'
-import { useEffect, useState } from 'react'
+import type { SubmitEvent } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import BoxCard from '../components/BoxCard'
 import * as api from '../services/api'
 import type { Box, InventoryItem } from '@/types'
@@ -47,7 +47,7 @@ export default function BoxesPage() {
     const [boxContents, setBoxContents] = useState<InventoryItem[]>([])
     const [contentsLoading, setContentsLoading] = useState(false)
 
-    async function loadBoxes() {
+    const loadBoxes = useCallback(async () => {
         setLoading(true)
         setError(null)
         try {
@@ -62,11 +62,11 @@ export default function BoxesPage() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [])
 
     useEffect(() => {
         loadBoxes().then()
-    }, [])
+    }, [loadBoxes])
 
     function openCreateForm() {
         setEditingBox(null)
@@ -82,7 +82,7 @@ export default function BoxesPage() {
         setShowForm(true)
     }
 
-    async function handleSaveBox( e: React.SubmitEvent ) {
+    async function handleSaveBox( e: SubmitEvent ) {
         e.preventDefault()
         if (!boxName.trim()) return
         setFormLoading(true)
@@ -138,7 +138,7 @@ export default function BoxesPage() {
             if (deletingBox.count > 0 && moveToBoxId) {
                 await api.moveBoxContents(deletingBox.box.id, Number(moveToBoxId))
             }
-            await api.deleteBox(deletingBox.box.id, { deleteItems: deleteWithItems })
+            await api.deleteBox(deletingBox.box.id, {deleteItems: deleteWithItems})
             // Clear the selected box if it was deleted
             if (selectedBox?.id === deletingBox.box.id) {
                 setSelectedBox(null)
@@ -154,6 +154,51 @@ export default function BoxesPage() {
         } finally {
             setDeleteLoading(false)
         }
+    }
+
+    function renderDeleteModalContent() {
+        if (!deletingBox || deletingBox.count === 0) return null
+
+        const otherBoxes = boxes.filter(b => b.box.id !== deletingBox.box.id)
+        if (otherBoxes.length > 0) {
+            return (
+                <div className="space-y-2">
+                    <p className="text-sm text-amber-300">
+                        This box contains {deletingBox.count} item(s). Please select a new box to move them
+                        to.
+                    </p>
+                    <Select value={moveToBoxId} onValueChange={setMoveToBoxId}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a box..."/>
+                        </SelectTrigger>
+                        <SelectContent>
+                            {otherBoxes.map(b => (
+                                <SelectItem key={b.box.id} value={String(b.box.id)}>
+                                    {b.box.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )
+        }
+
+        return (
+            <div className="space-y-3">
+                <p className="text-sm text-amber-300">
+                    This box contains {deletingBox.count} item(s), but there are no other boxes to move them to.
+                </p>
+                <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={deleteWithItems}
+                        onChange={( e ) => setDeleteWithItems(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-600 bg-slate-700 text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-slate-900"
+                    />
+                    <span className="text-sm text-slate-300">Also delete items</span>
+                </label>
+            </div>
+        )
     }
 
     return (
@@ -266,44 +311,7 @@ export default function BoxesPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="px-6">
-                        {deletingBox && deletingBox.count > 0 && (() => {
-                            const otherBoxes = boxes.filter(b => b.box.id !== deletingBox.box.id)
-                            return otherBoxes.length > 0 ? (
-                                <div className="space-y-2">
-                                    <p className="text-sm text-amber-300">
-                                        This box contains {deletingBox.count} item(s). Please select a new box to move them
-                                        to.
-                                    </p>
-                                    <Select value={moveToBoxId} onValueChange={setMoveToBoxId}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a box..."/>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {otherBoxes.map(b => (
-                                                <SelectItem key={b.box.id} value={String(b.box.id)}>
-                                                    {b.box.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    <p className="text-sm text-amber-300">
-                                        This box contains {deletingBox.count} item(s), but there are no other boxes to move them to.
-                                    </p>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={deleteWithItems}
-                                            onChange={(e) => setDeleteWithItems(e.target.checked)}
-                                            className="h-4 w-4 rounded border-slate-600 bg-slate-700 text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-slate-900"
-                                        />
-                                        <span className="text-sm text-slate-300">Also delete items</span>
-                                    </label>
-                                </div>
-                            )
-                        })()}
+                        {renderDeleteModalContent()}
                     </div>
                     <DialogFooter>
                         <Button variant="secondary" onClick={() => setDeletingBox(null)}>Cancel</Button>
@@ -386,13 +394,13 @@ export default function BoxesPage() {
                                 {boxContents.map(( item ) => (
                                     <tr key={item.id} className="hover:bg-secondary/40 transition-colors">
                                         <td className="px-4 py-3 font-mono text-blue-400 whitespace-nowrap">
-                                            {item.component.lcsc_part_no}
+                                            {item.component?.lcsc_part_no ?? '-'}
                                         </td>
                                         <td className="px-4 py-3 text-slate-200 max-w-[200px] truncate">
-                                            {item.component.name}
+                                            {item.component?.name ?? 'Unknown component'}
                                         </td>
                                         <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
-                                            {item.component.value}
+                                            {item.component?.value ?? ''}
                                         </td>
                                         <td className="px-4 py-3 text-right font-medium text-slate-200">
                                             {item.quantity}
