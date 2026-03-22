@@ -184,6 +184,34 @@ export default function BomPage() {
             const valueIdx = headerRow.findIndex(h => h === 'value' || h === 'comment') // EasyEDA uses 'Comment' for value often
             const lcscIdx = headerRow.findIndex(h => h === 'supplier part' || h.includes('lcsc')) // 'Supplier Part' usually has the LCSC code
 
+            // Validate required columns are present
+            const missingColumns: string[] = []
+            if (designatorIdx === -1) missingColumns.push('Designator')
+            if (quantityIdx === -1) missingColumns.push('Quantity')
+
+            if (missingColumns.length > 0) {
+                toast({
+                    title: 'Missing Required Columns',
+                    description: `The following required columns were not found in the CSV: ${missingColumns.join(', ')}. Please ensure your BOM file contains these columns.`,
+                    variant: 'destructive',
+                })
+                return
+            }
+
+            // Warn about optional missing columns
+            const missingOptionalColumns: string[] = []
+            if (footprintIdx === -1) missingOptionalColumns.push('Footprint')
+            if (valueIdx === -1) missingOptionalColumns.push('Value/Comment')
+            if (lcscIdx === -1) missingOptionalColumns.push('LCSC Part/Supplier Part')
+
+            if (missingOptionalColumns.length > 0) {
+                toast({
+                    title: 'Optional Columns Missing',
+                    description: `The following optional columns were not found: ${missingOptionalColumns.join(', ')}. Items may not auto-match to inventory.`,
+                    variant: 'default',
+                })
+            }
+
             items = lines.slice(headerLineIdx + 1).filter(l => l.trim() !== '').map(( line, idx ) => {
                 // Handle CSV split with quotes
                 const row: string[] = []
@@ -209,9 +237,9 @@ export default function BomPage() {
                     id: `bom-${Date.now()}-${idx}`,
                     quantity: parseInt(getVal(quantityIdx)) || 0,
                     designator: getVal(designatorIdx),
-                    footprint: getVal(footprintIdx),
-                    value: getVal(valueIdx),
-                    lcscPartNumber: getVal(lcscIdx),
+                    footprint: footprintIdx !== -1 ? getVal(footprintIdx) : '',
+                    value: valueIdx !== -1 ? getVal(valueIdx) : '',
+                    lcscPartNumber: lcscIdx !== -1 ? getVal(lcscIdx) : '',
                     placed: false,
                     soldered: false,
                 }
@@ -227,13 +255,41 @@ export default function BomPage() {
             const valueIdx = headerRow.findIndex(h => h.includes('value') || h.includes('comment'))
             const lcscIdx = headerRow.findIndex(h => h.includes('supplier part') || h.includes('lcsc'))
 
+            // Validate required columns are present
+            const missingColumns: string[] = []
+            if (designatorIdx === -1) missingColumns.push('Designator')
+            if (quantityIdx === -1) missingColumns.push('Quantity')
+
+            if (missingColumns.length > 0) {
+                toast({
+                    title: 'Missing Required Columns',
+                    description: `The following required columns were not found in the Excel file: ${missingColumns.join(', ')}. Please ensure your BOM file contains these columns.`,
+                    variant: 'destructive',
+                })
+                return
+            }
+
+            // Warn about optional missing columns
+            const missingOptionalColumns: string[] = []
+            if (footprintIdx === -1) missingOptionalColumns.push('Footprint')
+            if (valueIdx === -1) missingOptionalColumns.push('Value/Comment')
+            if (lcscIdx === -1) missingOptionalColumns.push('LCSC Part/Supplier Part')
+
+            if (missingOptionalColumns.length > 0) {
+                toast({
+                    title: 'Optional Columns Missing',
+                    description: `The following optional columns were not found: ${missingOptionalColumns.join(', ')}. Items may not auto-match to inventory.`,
+                    variant: 'default',
+                })
+            }
+
             items = rows.slice(1).map(( row: any, index: number ) => ({
                 id: `bom-${Date.now()}-${index}`,
-                designator: row[designatorIdx > -1 ? designatorIdx : 3]?.toString() || '',
-                footprint: row[footprintIdx > -1 ? footprintIdx : 4]?.toString() || '',
-                quantity: parseInt(row[quantityIdx > -1 ? quantityIdx : 1]?.toString() || '0'),
-                value: row[valueIdx > -1 ? valueIdx : 5]?.toString() || '',
-                lcscPartNumber: row[lcscIdx > -1 ? lcscIdx : 8]?.toString() || '',
+                designator: row[designatorIdx]?.toString() || '',
+                footprint: footprintIdx !== -1 ? (row[footprintIdx]?.toString() || '') : '',
+                quantity: parseInt(row[quantityIdx]?.toString() || '0'),
+                value: valueIdx !== -1 ? (row[valueIdx]?.toString() || '') : '',
+                lcscPartNumber: lcscIdx !== -1 ? (row[lcscIdx]?.toString() || '') : '',
                 placed: false,
                 soldered: false,
             }))
