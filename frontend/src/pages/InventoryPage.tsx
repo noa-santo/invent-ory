@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import ComponentModal from "../components/ComponentModal";
 import * as api from "../services/api";
 import type { Box, InventoryItem } from "../types";
@@ -9,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { RefreshCw, Search, AlertCircle, Loader2, Pencil, Trash2 } from "lucide-react";
 
 export default function InventoryPage() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,7 +157,12 @@ export default function InventoryPage() {
                       {item.quantity}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge>{item.box.name}</Badge>
+                      <Badge
+                        className="cursor-pointer hover:bg-primary/80 transition-colors"
+                        onClick={() => navigate("/boxes", { state: { highlightBoxId: item.box_id, highlightItemId: item.id } })}
+                      >
+                        {item.box.name}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

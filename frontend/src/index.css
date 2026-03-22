@@ -68,3 +68,29 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
+
+@keyframes flash-outline {
+  0%   { box-shadow: 0 0 0 0px rgba(59, 130, 246, 0); }
+  20%  { box-shadow: 0 0 0 3px rgba(59, 130, 246, 1); }
+  40%  { box-shadow: 0 0 0 0px rgba(59, 130, 246, 0); }
+  60%  { box-shadow: 0 0 0 3px rgba(59, 130, 246, 1); }
+  80%  { box-shadow: 0 0 0 0px rgba(59, 130, 246, 0); }
+  100% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 1); }
+}
+
+@keyframes flash-row {
+  0%   { background-color: transparent; }
+  20%  { background-color: rgba(59, 130, 246, 0.25); }
+  40%  { background-color: transparent; }
+  60%  { background-color: rgba(59, 130, 246, 0.25); }
+  80%  { background-color: transparent; }
+  100% { background-color: rgba(59, 130, 246, 0.25); }
+}
+
+.animate-flash-outline {
+  animation: flash-outline 0.4s ease-in-out 5;
+}
+
+.animate-flash-row {
+  animation: flash-row 0.4s ease-in-out 5;
+}

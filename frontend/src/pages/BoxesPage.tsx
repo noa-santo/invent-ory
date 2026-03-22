@@ -1,5 +1,4 @@
-import { type SubmitEvent, useCallback, useEffect, useState } from 'react'
-import BoxCard from '../components/BoxCard'
+import { type SubmitEvent, useCallback, useEffect, useRef, useState } from 'react'
 import * as api from '../services/api'
 import type { Box, InventoryItem } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -7,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import {
     Dialog,
     DialogContent,
@@ -15,8 +15,9 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
-import { AlertCircle, Loader2, Plus, RefreshCw } from 'lucide-react'
+import { AlertCircle, Loader2, Package, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 interface BoxWithCount {
     box: Box;
@@ -24,7 +25,11 @@ interface BoxWithCount {
 }
 
 export default function BoxesPage() {
-    const [boxes, setBoxes] = useState<BoxWithCount[]>([])
+    const location = useLocation()
+    const navigate = useNavigate()
+
+    const [boxes, setBoxes] = useState<Box[]>([])
+    const [itemsByBox, setItemsByBox] = useState<Map<number, InventoryItem[]>>(new Map())
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -41,21 +46,33 @@ export default function BoxesPage() {
     const [deleteWithItems, setDeleteWithItems] = useState(false)
     const [deleteLoading, setDeleteLoading] = useState(false)
 
-    // Box detail view
-    const [selectedBox, setSelectedBox] = useState<Box | null>(null)
-    const [boxContents, setBoxContents] = useState<InventoryItem[]>([])
-    const [contentsLoading, setContentsLoading] = useState(false)
+    // Drag and drop
+    const [dragging, setDragging] = useState<{ itemId: number; fromBoxId: number } | null>(null)
+    const [dragOverBoxId, setDragOverBoxId] = useState<number | null>(null)
 
-    const loadBoxes = useCallback(async () => {
+    // Highlight / flash
+    const [flashingBoxId, setFlashingBoxId] = useState<number | null>(null)
+    const [flashingItemId, setFlashingItemId] = useState<number | null>(null)
+    const boxRefs = useRef<Map<number, HTMLDivElement>>(new Map())
+    const itemRefs = useRef<Map<number, HTMLDivElement>>(new Map())
+    const highlightTriggeredRef = useRef(false)
+
+    const loadData = useCallback(async () => {
         setLoading(true)
         setError(null)
         try {
             const [bxs, inv] = await Promise.all([api.getBoxes(), api.getInventory()])
-            const countMap = new Map<number, number>()
-            for (const item of inv) {
-                countMap.set(item.box_id, (countMap.get(item.box_id) ?? 0) + 1)
+            const itemMap = new Map<number, InventoryItem[]>()
+            for (const box of bxs) {
+                itemMap.set(box.id, [])
             }
-            setBoxes(bxs.map(( box ) => ({box, count: countMap.get(box.id) ?? 0})))
+            for (const item of inv) {
+                const arr = itemMap.get(item.box_id) ?? []
+                arr.push(item)
+                itemMap.set(item.box_id, arr)
+            }
+            setBoxes(bxs)
+            setItemsByBox(itemMap)
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load boxes.')
         } finally {
@@ -64,8 +81,36 @@ export default function BoxesPage() {
     }, [])
 
     useEffect(() => {
-        loadBoxes().then()
-    }, [loadBoxes])
+        loadData().then()
+    }, [loadData])
+
+    // Handle highlight from navigation state
+    const highlightBoxId = (location.state as { highlightBoxId?: number; highlightItemId?: number } | null)?.highlightBoxId
+    const highlightItemId = (location.state as { highlightBoxId?: number; highlightItemId?: number } | null)?.highlightItemId
+
+    useEffect(() => {
+        if (!highlightBoxId || loading || highlightTriggeredRef.current) return
+
+        const boxEl = boxRefs.current.get(highlightBoxId)
+        if (boxEl) {
+            highlightTriggeredRef.current = true
+            boxEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+            setFlashingBoxId(highlightBoxId)
+            setFlashingItemId(highlightItemId ?? null)
+
+            const timer = setTimeout(() => {
+                setFlashingBoxId(null)
+                setFlashingItemId(null)
+                highlightTriggeredRef.current = false
+                navigate('/boxes', { replace: true, state: null })
+            }, 2200)
+
+            return () => {
+                clearTimeout(timer)
+                highlightTriggeredRef.current = false
+            }
+        }
+    }, [loading, highlightBoxId, highlightItemId, navigate])
 
     function openCreateForm() {
         setEditingBox(null)
@@ -74,14 +119,14 @@ export default function BoxesPage() {
         setShowForm(true)
     }
 
-    function openEditForm( box: Box ) {
+    function openEditForm(box: Box) {
         setEditingBox(box)
         setBoxName(box.name)
         setBoxDesc(box.description || '')
         setShowForm(true)
     }
 
-    async function handleSaveBox( e: SubmitEvent ) {
+    async function handleSaveBox(e: SubmitEvent) {
         e.preventDefault()
         if (!boxName.trim()) return
         setFormLoading(true)
@@ -91,10 +136,11 @@ export default function BoxesPage() {
                     name: boxName.trim(),
                     description: boxDesc.trim(),
                 })
-                setBoxes(prev => prev.map(b => b.box.id === updated.id ? {...b, box: updated} : b))
+                setBoxes(prev => prev.map(b => b.id === updated.id ? updated : b))
             } else {
-                const created = await api.createBox({name: boxName.trim(), description: boxDesc.trim()})
-                setBoxes(( prev ) => [...prev, {box: created, count: 0}])
+                const created = await api.createBox({ name: boxName.trim(), description: boxDesc.trim() })
+                setBoxes(prev => [...prev, created])
+                setItemsByBox(prev => new Map(prev).set(created.id, []))
             }
             setBoxName('')
             setBoxDesc('')
@@ -107,25 +153,13 @@ export default function BoxesPage() {
         }
     }
 
-    async function handleBoxClick( box: Box ) {
-        setSelectedBox(box)
-        setContentsLoading(true)
-        try {
-            const contents = await api.getBoxContents(box.id)
-            setBoxContents(contents)
-        } catch {
-            setBoxContents([])
-        } finally {
-            setContentsLoading(false)
-        }
-    }
-
-    function handleDeleteClick( boxWithCount: BoxWithCount ) {
-        setDeletingBox(boxWithCount)
+    function handleDeleteClick(box: Box) {
+        const count = itemsByBox.get(box.id)?.length ?? 0
+        setDeletingBox({ box, count })
         setDeleteWithItems(false)
-        if (boxWithCount.count > 0) {
-            const otherBox = boxes.find(b => b.box.id !== boxWithCount.box.id)
-            if (otherBox) setMoveToBoxId(String(otherBox.box.id))
+        if (count > 0) {
+            const otherBox = boxes.find(b => b.id !== box.id)
+            if (otherBox) setMoveToBoxId(String(otherBox.id))
         }
     }
 
@@ -137,15 +171,22 @@ export default function BoxesPage() {
             if (deletingBox.count > 0 && moveToBoxId) {
                 await api.moveBoxContents(deletingBox.box.id, Number(moveToBoxId))
             }
-            await api.deleteBox(deletingBox.box.id, {deleteItems: deleteWithItems})
-            if (selectedBox?.id === deletingBox.box.id) {
-                setSelectedBox(null)
-                setBoxContents([])
-            }
+            await api.deleteBox(deletingBox.box.id, { deleteItems: deleteWithItems })
+            setBoxes(prev => prev.filter(b => b.id !== deletingBox.box.id))
+            setItemsByBox(prev => {
+                const next = new Map(prev)
+                if (moveToBoxId) {
+                    const moved = next.get(deletingBox.box.id) ?? []
+                    const targetId = Number(moveToBoxId)
+                    const targetItems = next.get(targetId) ?? []
+                    next.set(targetId, [...targetItems, ...moved.map(i => ({ ...i, box_id: targetId }))])
+                }
+                next.delete(deletingBox.box.id)
+                return next
+            })
             setDeletingBox(null)
             setMoveToBoxId('')
             setDeleteWithItems(false)
-            await loadBoxes()
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to delete box.')
         } finally {
@@ -153,25 +194,81 @@ export default function BoxesPage() {
         }
     }
 
+    // ── Drag and drop ──────────────────────────────────────────────────────────
+
+    function handleItemDragStart(e: React.DragEvent, item: InventoryItem) {
+        setDragging({ itemId: item.id, fromBoxId: item.box_id })
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', String(item.id))
+    }
+
+    function handleItemDragEnd() {
+        setDragging(null)
+        setDragOverBoxId(null)
+    }
+
+    function handleBoxDragOver(e: React.DragEvent, boxId: number) {
+        if (!dragging || dragging.fromBoxId === boxId) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        setDragOverBoxId(boxId)
+    }
+
+    function handleBoxDragLeave(e: React.DragEvent) {
+        // Only clear if leaving the box element itself (not a child)
+        const related = e.relatedTarget as Element | null
+        if (related && e.currentTarget.contains(related)) return
+        setDragOverBoxId(null)
+    }
+
+    async function handleBoxDrop(e: React.DragEvent, targetBoxId: number) {
+        e.preventDefault()
+        setDragOverBoxId(null)
+        if (!dragging || dragging.fromBoxId === targetBoxId) return
+
+        const { itemId, fromBoxId } = dragging
+        setDragging(null)
+
+        // Optimistic update
+        setItemsByBox(prev => {
+            const next = new Map(prev)
+            const fromItems = (next.get(fromBoxId) ?? []).filter(i => i.id !== itemId)
+            const item = (prev.get(fromBoxId) ?? []).find(i => i.id === itemId)
+            if (!item) return prev
+            const toItems = [...(next.get(targetBoxId) ?? []), { ...item, box_id: targetBoxId }]
+            next.set(fromBoxId, fromItems)
+            next.set(targetBoxId, toItems)
+            return next
+        })
+
+        try {
+            await api.updateInventoryItem(itemId, { box_id: targetBoxId })
+        } catch {
+            // Revert on failure
+            await loadData()
+        }
+    }
+
+    // ── Delete modal content ───────────────────────────────────────────────────
+
     function renderDeleteModalContent() {
         if (!deletingBox || deletingBox.count === 0) return null
 
-        const otherBoxes = boxes.filter(b => b.box.id !== deletingBox.box.id)
+        const otherBoxes = boxes.filter(b => b.id !== deletingBox.box.id)
         if (otherBoxes.length > 0) {
             return (
                 <div className="space-y-2 pt-4">
                     <p className="text-sm text-amber-300">
-                        This box contains {deletingBox.count} item(s). Please select a new box to move them
-                        to.
+                        This box contains {deletingBox.count} item(s). Please select a new box to move them to.
                     </p>
                     <Select value={moveToBoxId} onValueChange={setMoveToBoxId}>
                         <SelectTrigger>
-                            <SelectValue placeholder="Select a box..."/>
+                            <SelectValue placeholder="Select a box…"/>
                         </SelectTrigger>
                         <SelectContent>
                             {otherBoxes.map(b => (
-                                <SelectItem key={b.box.id} value={String(b.box.id)}>
-                                    {b.box.name}
+                                <SelectItem key={b.id} value={String(b.id)}>
+                                    {b.name}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -189,7 +286,7 @@ export default function BoxesPage() {
                     <input
                         type="checkbox"
                         checked={deleteWithItems}
-                        onChange={( e ) => setDeleteWithItems(e.target.checked)}
+                        onChange={e => setDeleteWithItems(e.target.checked)}
                         className="h-4 w-4 rounded border-slate-600 bg-slate-700 text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-slate-900"
                     />
                     <span className="text-sm text-slate-300">Also delete items</span>
@@ -198,10 +295,12 @@ export default function BoxesPage() {
         )
     }
 
+    // ── Render ─────────────────────────────────────────────────────────────────
+
     return (
-        <div className="space-y-5">
+        <div className="flex flex-col h-full gap-5">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-shrink-0">
                 <div className="flex-1">
                     <h1 className="text-2xl font-bold text-slate-100">Boxes</h1>
                     <p className="mt-0.5 text-sm text-muted-foreground">
@@ -209,14 +308,11 @@ export default function BoxesPage() {
                     </p>
                 </div>
                 <div className="flex gap-2 self-start">
-                    <Button type="button" variant="secondary" onClick={loadBoxes}>
+                    <Button type="button" variant="secondary" onClick={loadData}>
                         <RefreshCw className="h-4 w-4"/>
                         Refresh
                     </Button>
-                    <Button
-                        type="button"
-                        onClick={openCreateForm}
-                    >
+                    <Button type="button" onClick={openCreateForm}>
                         <Plus className="h-4 w-4"/>
                         Create Box
                     </Button>
@@ -225,25 +321,16 @@ export default function BoxesPage() {
 
             {/* Error */}
             {error && (
-                <div
-                    className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm bg-red-900/40 text-red-300 border border-red-700">
+                <div className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm bg-red-900/40 text-red-300 border border-red-700 flex-shrink-0">
                     <AlertCircle className="h-4 w-4 flex-shrink-0"/>
                     {error}
                 </div>
             )}
 
             {/* Create/Edit Modal */}
-            <Dialog
-                open={showForm}
-                onOpenChange={( open ) => {
-                    if (!open) {
-                        setShowForm(false)
-                        setEditingBox(null)
-                        setBoxName('')
-                        setBoxDesc('')
-                    }
-                }}
-            >
+            <Dialog open={showForm} onOpenChange={open => {
+                if (!open) { setShowForm(false); setEditingBox(null); setBoxName(''); setBoxDesc('') }
+            }}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{editingBox ? 'Edit Box' : 'New Box'}</DialogTitle>
@@ -251,14 +338,12 @@ export default function BoxesPage() {
                     <div className="px-6 pb-6">
                         <form onSubmit={handleSaveBox} className="space-y-4">
                             <div className="space-y-1.5">
-                                <Label htmlFor="box-name">
-                                    Name <span className="text-red-400">*</span>
-                                </Label>
+                                <Label htmlFor="box-name">Name <span className="text-red-400">*</span></Label>
                                 <Input
                                     id="box-name"
                                     type="text"
                                     value={boxName}
-                                    onChange={( e ) => setBoxName(e.target.value)}
+                                    onChange={e => setBoxName(e.target.value)}
                                     placeholder="e.g. Resistors 0402"
                                     required
                                     autoFocus
@@ -269,22 +354,18 @@ export default function BoxesPage() {
                                 <Textarea
                                     id="box-desc"
                                     value={boxDesc}
-                                    onChange={( e ) => setBoxDesc(e.target.value)}
+                                    onChange={e => setBoxDesc(e.target.value)}
                                     placeholder="Optional description…"
                                     rows={3}
                                     className="resize-none"
                                 />
                             </div>
                             <DialogFooter>
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    onClick={() => setShowForm(false)}
-                                >
+                                <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
                                     Cancel
                                 </Button>
                                 <Button type="submit" disabled={formLoading || !boxName.trim()}>
-                                    {formLoading ? 'Saving…' : (editingBox ? 'Update Box' : 'Create Box')}
+                                    {formLoading ? 'Saving…' : editingBox ? 'Update Box' : 'Create Box'}
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -293,18 +374,12 @@ export default function BoxesPage() {
             </Dialog>
 
             {/* Delete Confirmation Modal */}
-            <Dialog
-                open={!!deletingBox}
-                onOpenChange={( open ) => {
-                    if (!open) setDeletingBox(null)
-                }}
-            >
+            <Dialog open={!!deletingBox} onOpenChange={open => { if (!open) setDeletingBox(null) }}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Delete Box</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete the box "{deletingBox?.box.name}"? This action cannot be
-                            undone.
+                            Are you sure you want to delete the box "{deletingBox?.box.name}"? This action cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="px-6">
@@ -323,93 +398,141 @@ export default function BoxesPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Boxes grid */}
+            {/* Boxes board */}
             {loading ? (
-                <Card className="p-10 flex items-center justify-center gap-3 text-muted-foreground">
+                <Card className="p-10 flex items-center justify-center gap-3 text-muted-foreground flex-shrink-0">
                     <Loader2 className="h-5 w-5 animate-spin"/>
                     Loading boxes…
                 </Card>
             ) : boxes.length === 0 ? (
-                <Card className="p-10 text-center text-muted-foreground">
+                <Card className="p-10 text-center text-muted-foreground flex-shrink-0">
                     No boxes yet. Create one to start organising your components.
                 </Card>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {boxes.map(( boxWithCount ) => (
-                        <BoxCard
-                            key={boxWithCount.box.id}
-                            box={boxWithCount.box}
-                            itemCount={boxWithCount.count}
-                            onClick={() => handleBoxClick(boxWithCount.box)}
-                            onEdit={() => openEditForm(boxWithCount.box)}
-                            onDelete={() => handleDeleteClick(boxWithCount)}
-                        />
-                    ))}
+                <div className="overflow-x-auto overflow-y-hidden flex-1 -mx-4 md:-mx-6 px-4 md:px-6">
+                    <div className="flex gap-4 h-full pb-4" style={{ minWidth: 'max-content' }}>
+                        {boxes.map(box => {
+                            const items = itemsByBox.get(box.id) ?? []
+                            const isFlashing = flashingBoxId === box.id
+
+                            return (
+                                <div
+                                    key={box.id}
+                                    ref={el => {
+                                        if (el) boxRefs.current.set(box.id, el)
+                                        else boxRefs.current.delete(box.id)
+                                    }}
+                                    className={[
+                                        'w-72 flex flex-col rounded-lg border bg-card transition-colors duration-150',
+                                        dragOverBoxId === box.id
+                                            ? 'border-primary/70 bg-primary/5'
+                                            : 'border-border',
+                                        isFlashing ? 'animate-flash-outline' : '',
+                                    ].join(' ')}
+                                    /* 13rem ≈ page header + boxes section header + vertical padding */
+                                    style={{ height: 'min(600px, calc(100vh - 13rem))' }}
+                                    onDragOver={e => handleBoxDragOver(e, box.id)}
+                                    onDragLeave={handleBoxDragLeave}
+                                    onDrop={e => handleBoxDrop(e, box.id)}
+                                >
+                                    {/* Box header */}
+                                    <div className="p-4 flex-shrink-0 border-b border-border">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <div className="flex items-center justify-center h-8 w-8 rounded-md bg-primary/20 text-blue-400 flex-shrink-0">
+                                                    <Package className="h-4 w-4"/>
+                                                </div>
+                                                <h3 className="font-semibold text-slate-100 truncate">{box.name}</h3>
+                                            </div>
+                                            <div className="flex gap-1 flex-shrink-0">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-slate-400 hover:text-white hover:bg-slate-600"
+                                                    onClick={() => openEditForm(box)}
+                                                >
+                                                    <Pencil className="h-3.5 w-3.5"/>
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-slate-400 hover:text-red-400 hover:bg-slate-600"
+                                                    onClick={() => handleDeleteClick(box)}
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5"/>
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        {box.description && (
+                                            <p className="mt-1.5 text-xs text-slate-400 line-clamp-2">{box.description}</p>
+                                        )}
+                                        <div className="mt-2">
+                                            <Badge className="text-xs">
+                                                {items.length} {items.length === 1 ? 'item' : 'items'}
+                                            </Badge>
+                                        </div>
+                                    </div>
+
+                                    {/* Items list */}
+                                    <div className="flex-1 overflow-y-auto">
+                                        {items.length === 0 ? (
+                                            <div className={[
+                                                'h-full flex items-center justify-center text-xs text-muted-foreground p-4 text-center transition-colors',
+                                                dragOverBoxId === box.id ? 'text-primary' : '',
+                                            ].join(' ')}>
+                                                {dragOverBoxId === box.id ? 'Drop here' : 'Empty box'}
+                                            </div>
+                                        ) : (
+                                            <div className="divide-y divide-border/50">
+                                                {items.map(item => {
+                                                    const isItemFlashing = flashingItemId === item.id
+                                                    const isDraggingThis = dragging?.itemId === item.id
+                                                    return (
+                                                        <div
+                                                            key={item.id}
+                                                            ref={el => {
+                                                                if (el) itemRefs.current.set(item.id, el)
+                                                                else itemRefs.current.delete(item.id)
+                                                            }}
+                                                            draggable
+                                                            onDragStart={e => handleItemDragStart(e, item)}
+                                                            onDragEnd={handleItemDragEnd}
+                                                            className={[
+                                                                'px-3 py-2.5 cursor-grab active:cursor-grabbing select-none transition-colors',
+                                                                isDraggingThis ? 'opacity-40' : 'hover:bg-secondary/40',
+                                                                isItemFlashing ? 'animate-flash-row' : '',
+                                                            ].join(' ')}
+                                                        >
+                                                            <div className="flex items-start justify-between gap-2">
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="text-xs font-mono text-blue-400 truncate">
+                                                                        {item.component?.lcsc_part_no ?? '—'}
+                                                                    </p>
+                                                                    <p className="text-sm text-slate-200 truncate mt-0.5">
+                                                                        {item.component?.name ?? 'Unknown'}
+                                                                    </p>
+                                                                    {item.component?.value && (
+                                                                        <p className="text-xs text-slate-400 truncate">
+                                                                            {item.component.value}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                                <span className="text-xs font-medium text-slate-300 flex-shrink-0 bg-secondary/60 px-1.5 py-0.5 rounded">
+                                                                    ×{item.quantity}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
                 </div>
             )}
-
-            {/* Box detail dialog */}
-            <Dialog
-                open={!!selectedBox}
-                onOpenChange={( open ) => {
-                    if (!open) {
-                        setSelectedBox(null)
-                        setBoxContents([])
-                    }
-                }}
-            >
-                <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
-                    <DialogHeader>
-                        <DialogTitle>{selectedBox?.name}</DialogTitle>
-                        {selectedBox?.description && (
-                            <DialogDescription>{selectedBox.description}</DialogDescription>
-                        )}
-                    </DialogHeader>
-
-                    {/* Contents */}
-                    <div className="flex-1 overflow-y-auto">
-                        {contentsLoading ? (
-                            <div className="flex items-center justify-center gap-3 p-10 text-muted-foreground">
-                                <Loader2 className="h-5 w-5 animate-spin"/>
-                                Loading contents…
-                            </div>
-                        ) : boxContents.length === 0 ? (
-                            <div className="p-10 text-center text-muted-foreground">This box is empty.</div>
-                        ) : (
-                            <table className="w-full text-sm">
-                                <thead>
-                                <tr className="border-b border-border bg-card/60">
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Part
-                                        No
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Value</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Qty</th>
-                                </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/60">
-                                {boxContents.map(( item ) => (
-                                    <tr key={item.id} className="hover:bg-secondary/40 transition-colors">
-                                        <td className="px-4 py-3 font-mono text-blue-400 whitespace-nowrap">
-                                            {item.component?.lcsc_part_no ?? '-'}
-                                        </td>
-                                        <td className="px-4 py-3 text-slate-200 max-w-[200px] truncate">
-                                            {item.component?.name ?? 'Unknown component'}
-                                        </td>
-                                        <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
-                                            {item.component?.value ?? ''}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-medium text-slate-200">
-                                            {item.quantity}
-                                        </td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
         </div>
     )
 }
