@@ -68,3 +68,33 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
+
+@keyframes flash-outline {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+  30%,
+  70% {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  }
+}
+
+@keyframes flash-row {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  30%,
+  70% {
+    background-color: rgba(59, 130, 246, 0.16);
+  }
+}
+
+.animate-flash-outline {
+  animation: flash-outline 1.2s ease-out 1;
+}
+
+.animate-flash-row {
+  animation: flash-row 1.2s ease-out 1;
+}
