@@ -181,7 +181,7 @@ export default function BomPage() {
         if (hasChanges) {
             setBomData(matchedData)
         }
-    }, [inventory, bomData?.length])
+    }, [inventory, bomData])
 
     // Filter inventory when search query changes
     useEffect(() => {
