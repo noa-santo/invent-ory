@@ -95,6 +95,19 @@ func DeleteBox(c *gin.Context) {
 		return
 	}
 
+	deleteItems := c.Query("delete_items") == "true"
+
+	// If delete_items is true, delete all inventory items in this box first
+	if deleteItems {
+		if result := database.DB.Delete(&models.InventoryItem{}, "box_id = ?", id); result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   result.Error.Error(),
+				"message": "failed to delete inventory items",
+			})
+			return
+		}
+	}
+
 	if result := database.DB.Delete(&models.Box{}, id); result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   result.Error.Error(),
