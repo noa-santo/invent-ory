@@ -53,9 +53,34 @@ export default function BoxesPage() {
     // Highlight / flash
     const [flashingBoxId, setFlashingBoxId] = useState<number | null>(null)
     const [flashingItemId, setFlashingItemId] = useState<number | null>(null)
+    const boardRef = useRef<HTMLDivElement | null>(null)
     const boxRefs = useRef<Map<number, HTMLDivElement>>(new Map())
+    const listRefs = useRef<Map<number, HTMLDivElement>>(new Map())
     const itemRefs = useRef<Map<number, HTMLDivElement>>(new Map())
     const highlightTriggeredRef = useRef(false)
+
+    function isOffscreen(
+        el: HTMLElement,
+        container: HTMLElement | null,
+        axis: 'horizontal' | 'vertical' | 'both' = 'both',
+    ) {
+        const rect = el.getBoundingClientRect()
+
+        if (!container) {
+            const offscreenX = rect.left < 0 || rect.right > window.innerWidth
+            const offscreenY = rect.top < 0 || rect.bottom > window.innerHeight
+            if (axis === 'horizontal') return offscreenX
+            if (axis === 'vertical') return offscreenY
+            return offscreenX || offscreenY
+        }
+
+        const containerRect = container.getBoundingClientRect()
+        const offscreenX = rect.left < containerRect.left || rect.right > containerRect.right
+        const offscreenY = rect.top < containerRect.top || rect.bottom > containerRect.bottom
+        if (axis === 'horizontal') return offscreenX
+        if (axis === 'vertical') return offscreenY
+        return offscreenX || offscreenY
+    }
 
     const loadData = useCallback(async () => {
         setLoading(true)
@@ -100,7 +125,19 @@ export default function BoxesPage() {
         const boxEl = boxRefs.current.get(highlightBoxId)
         if (boxEl) {
             highlightTriggeredRef.current = true
-            boxEl.scrollIntoView({behavior: 'smooth', block: 'nearest', inline: 'center'})
+
+            if (isOffscreen(boxEl, boardRef.current, 'horizontal')) {
+                boxEl.scrollIntoView({behavior: 'smooth', block: 'nearest', inline: 'center'})
+            }
+
+            if (highlightItemId) {
+                const itemEl = itemRefs.current.get(highlightItemId)
+                const listEl = listRefs.current.get(highlightBoxId)
+                if (itemEl && isOffscreen(itemEl, listEl ?? null, 'vertical')) {
+                    itemEl.scrollIntoView({behavior: 'smooth', block: 'nearest', inline: 'nearest'})
+                }
+            }
+
             setFlashingBoxId(highlightBoxId)
             setFlashingItemId(highlightItemId ?? null)
 
@@ -423,6 +460,7 @@ export default function BoxesPage() {
                 </Card>
             ) : (
                 <div
+                    ref={boardRef}
                     className="overflow-x-auto overflow-y-visible flex-1 min-h-0 -mx-4 md:-mx-6 px-4 md:px-6 pt-1 pb-2">
                     <div className="flex gap-4 h-full min-h-0 pb-4" style={{minWidth: 'max-content'}}>
                         {boxes.map(box => {
@@ -487,7 +525,13 @@ export default function BoxesPage() {
                                     </div>
 
                                     {/* Items list */}
-                                    <div className="flex-1 min-h-0 overflow-y-auto pb-1">
+                                    <div
+                                        ref={el => {
+                                            if (el) listRefs.current.set(box.id, el)
+                                            else listRefs.current.delete(box.id)
+                                        }}
+                                        className="flex-1 min-h-0 overflow-y-auto pb-1"
+                                    >
                                         {items.length === 0 ? (
                                             <div className={[
                                                 'h-full flex items-center justify-center text-xs text-muted-foreground p-4 text-center transition-colors',
