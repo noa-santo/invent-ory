@@ -85,8 +85,14 @@ export default function BoxesPage() {
     }, [loadData])
 
     // Handle highlight from navigation state
-    const highlightBoxId = (location.state as { highlightBoxId?: number; highlightItemId?: number } | null)?.highlightBoxId
-    const highlightItemId = (location.state as { highlightBoxId?: number; highlightItemId?: number } | null)?.highlightItemId
+    const highlightBoxId = (location.state as {
+        highlightBoxId?: number;
+        highlightItemId?: number
+    } | null)?.highlightBoxId
+    const highlightItemId = (location.state as {
+        highlightBoxId?: number;
+        highlightItemId?: number
+    } | null)?.highlightItemId
 
     useEffect(() => {
         if (!highlightBoxId || loading || highlightTriggeredRef.current) return
@@ -94,7 +100,7 @@ export default function BoxesPage() {
         const boxEl = boxRefs.current.get(highlightBoxId)
         if (boxEl) {
             highlightTriggeredRef.current = true
-            boxEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+            boxEl.scrollIntoView({behavior: 'smooth', block: 'nearest', inline: 'center'})
             setFlashingBoxId(highlightBoxId)
             setFlashingItemId(highlightItemId ?? null)
 
@@ -102,7 +108,7 @@ export default function BoxesPage() {
                 setFlashingBoxId(null)
                 setFlashingItemId(null)
                 highlightTriggeredRef.current = false
-                navigate('/boxes', { replace: true, state: null })
+                navigate('/boxes', {replace: true, state: null})
             }, 2200)
 
             return () => {
@@ -119,14 +125,14 @@ export default function BoxesPage() {
         setShowForm(true)
     }
 
-    function openEditForm(box: Box) {
+    function openEditForm( box: Box ) {
         setEditingBox(box)
         setBoxName(box.name)
         setBoxDesc(box.description || '')
         setShowForm(true)
     }
 
-    async function handleSaveBox(e: SubmitEvent) {
+    async function handleSaveBox( e: SubmitEvent ) {
         e.preventDefault()
         if (!boxName.trim()) return
         setFormLoading(true)
@@ -138,7 +144,7 @@ export default function BoxesPage() {
                 })
                 setBoxes(prev => prev.map(b => b.id === updated.id ? updated : b))
             } else {
-                const created = await api.createBox({ name: boxName.trim(), description: boxDesc.trim() })
+                const created = await api.createBox({name: boxName.trim(), description: boxDesc.trim()})
                 setBoxes(prev => [...prev, created])
                 setItemsByBox(prev => new Map(prev).set(created.id, []))
             }
@@ -153,9 +159,9 @@ export default function BoxesPage() {
         }
     }
 
-    function handleDeleteClick(box: Box) {
+    function handleDeleteClick( box: Box ) {
         const count = itemsByBox.get(box.id)?.length ?? 0
-        setDeletingBox({ box, count })
+        setDeletingBox({box, count})
         setDeleteWithItems(false)
         if (count > 0) {
             const otherBox = boxes.find(b => b.id !== box.id)
@@ -171,7 +177,7 @@ export default function BoxesPage() {
             if (deletingBox.count > 0 && moveToBoxId) {
                 await api.moveBoxContents(deletingBox.box.id, Number(moveToBoxId))
             }
-            await api.deleteBox(deletingBox.box.id, { deleteItems: deleteWithItems })
+            await api.deleteBox(deletingBox.box.id, {deleteItems: deleteWithItems})
             setBoxes(prev => prev.filter(b => b.id !== deletingBox.box.id))
             setItemsByBox(prev => {
                 const next = new Map(prev)
@@ -179,7 +185,7 @@ export default function BoxesPage() {
                     const moved = next.get(deletingBox.box.id) ?? []
                     const targetId = Number(moveToBoxId)
                     const targetItems = next.get(targetId) ?? []
-                    next.set(targetId, [...targetItems, ...moved.map(i => ({ ...i, box_id: targetId }))])
+                    next.set(targetId, [...targetItems, ...moved.map(i => ({...i, box_id: targetId}))])
                 }
                 next.delete(deletingBox.box.id)
                 return next
@@ -196,8 +202,8 @@ export default function BoxesPage() {
 
     // ── Drag and drop ──────────────────────────────────────────────────────────
 
-    function handleItemDragStart(e: React.DragEvent, item: InventoryItem) {
-        setDragging({ itemId: item.id, fromBoxId: item.box_id })
+    function handleItemDragStart( e: React.DragEvent, item: InventoryItem ) {
+        setDragging({itemId: item.id, fromBoxId: item.box_id})
         e.dataTransfer.effectAllowed = 'move'
         e.dataTransfer.setData('text/plain', String(item.id))
     }
@@ -207,26 +213,26 @@ export default function BoxesPage() {
         setDragOverBoxId(null)
     }
 
-    function handleBoxDragOver(e: React.DragEvent, boxId: number) {
+    function handleBoxDragOver( e: React.DragEvent, boxId: number ) {
         if (!dragging || dragging.fromBoxId === boxId) return
         e.preventDefault()
         e.dataTransfer.dropEffect = 'move'
         setDragOverBoxId(boxId)
     }
 
-    function handleBoxDragLeave(e: React.DragEvent) {
+    function handleBoxDragLeave( e: React.DragEvent ) {
         // Only clear if leaving the box element itself (not a child)
         const related = e.relatedTarget as Element | null
         if (related && e.currentTarget.contains(related)) return
         setDragOverBoxId(null)
     }
 
-    async function handleBoxDrop(e: React.DragEvent, targetBoxId: number) {
+    async function handleBoxDrop( e: React.DragEvent, targetBoxId: number ) {
         e.preventDefault()
         setDragOverBoxId(null)
         if (!dragging || dragging.fromBoxId === targetBoxId) return
 
-        const { itemId, fromBoxId } = dragging
+        const {itemId, fromBoxId} = dragging
         setDragging(null)
 
         // Optimistic update
@@ -235,14 +241,14 @@ export default function BoxesPage() {
             const fromItems = (next.get(fromBoxId) ?? []).filter(i => i.id !== itemId)
             const item = (prev.get(fromBoxId) ?? []).find(i => i.id === itemId)
             if (!item) return prev
-            const toItems = [...(next.get(targetBoxId) ?? []), { ...item, box_id: targetBoxId }]
+            const toItems = [...(next.get(targetBoxId) ?? []), {...item, box_id: targetBoxId}]
             next.set(fromBoxId, fromItems)
             next.set(targetBoxId, toItems)
             return next
         })
 
         try {
-            await api.updateInventoryItem(itemId, { box_id: targetBoxId })
+            await api.updateInventoryItem(itemId, {box_id: targetBoxId})
         } catch {
             // Revert on failure
             await loadData()
@@ -298,7 +304,7 @@ export default function BoxesPage() {
     // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
-        <div className="flex flex-col h-full gap-5">
+        <div className="flex flex-col h-full min-h-0 gap-5">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-shrink-0">
                 <div className="flex-1">
@@ -321,7 +327,8 @@ export default function BoxesPage() {
 
             {/* Error */}
             {error && (
-                <div className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm bg-red-900/40 text-red-300 border border-red-700 flex-shrink-0">
+                <div
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm bg-red-900/40 text-red-300 border border-red-700 flex-shrink-0">
                     <AlertCircle className="h-4 w-4 flex-shrink-0"/>
                     {error}
                 </div>
@@ -329,7 +336,12 @@ export default function BoxesPage() {
 
             {/* Create/Edit Modal */}
             <Dialog open={showForm} onOpenChange={open => {
-                if (!open) { setShowForm(false); setEditingBox(null); setBoxName(''); setBoxDesc('') }
+                if (!open) {
+                    setShowForm(false)
+                    setEditingBox(null)
+                    setBoxName('')
+                    setBoxDesc('')
+                }
             }}>
                 <DialogContent>
                     <DialogHeader>
@@ -379,7 +391,8 @@ export default function BoxesPage() {
                     <DialogHeader>
                         <DialogTitle>Delete Box</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete the box "{deletingBox?.box.name}"? This action cannot be undone.
+                            Are you sure you want to delete the box "{deletingBox?.box.name}"? This action cannot be
+                            undone.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="px-6">
@@ -409,8 +422,9 @@ export default function BoxesPage() {
                     No boxes yet. Create one to start organising your components.
                 </Card>
             ) : (
-                <div className="overflow-x-auto overflow-y-hidden flex-1 -mx-4 md:-mx-6 px-4 md:px-6">
-                    <div className="flex gap-4 h-full pb-4" style={{ minWidth: 'max-content' }}>
+                <div
+                    className="overflow-x-auto overflow-y-visible flex-1 min-h-0 -mx-4 md:-mx-6 px-4 md:px-6 pt-1 pb-2">
+                    <div className="flex gap-4 h-full min-h-0 pb-4" style={{minWidth: 'max-content'}}>
                         {boxes.map(box => {
                             const items = itemsByBox.get(box.id) ?? []
                             const isFlashing = flashingBoxId === box.id
@@ -423,14 +437,12 @@ export default function BoxesPage() {
                                         else boxRefs.current.delete(box.id)
                                     }}
                                     className={[
-                                        'w-72 flex flex-col rounded-lg border bg-card transition-colors duration-150',
+                                        'w-72 h-full max-h-[600px] flex flex-col rounded-lg border bg-card transition-colors duration-150',
                                         dragOverBoxId === box.id
                                             ? 'border-primary/70 bg-primary/5'
                                             : 'border-border',
                                         isFlashing ? 'animate-flash-outline' : '',
                                     ].join(' ')}
-                                    /* 13rem ≈ page header + boxes section header + vertical padding */
-                                    style={{ height: 'min(600px, calc(100vh - 13rem))' }}
                                     onDragOver={e => handleBoxDragOver(e, box.id)}
                                     onDragLeave={handleBoxDragLeave}
                                     onDrop={e => handleBoxDrop(e, box.id)}
@@ -439,7 +451,8 @@ export default function BoxesPage() {
                                     <div className="p-4 flex-shrink-0 border-b border-border">
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="flex items-center gap-2 min-w-0">
-                                                <div className="flex items-center justify-center h-8 w-8 rounded-md bg-primary/20 text-blue-400 flex-shrink-0">
+                                                <div
+                                                    className="flex items-center justify-center h-8 w-8 rounded-md bg-primary/20 text-blue-400 flex-shrink-0">
                                                     <Package className="h-4 w-4"/>
                                                 </div>
                                                 <h3 className="font-semibold text-slate-100 truncate">{box.name}</h3>
@@ -474,7 +487,7 @@ export default function BoxesPage() {
                                     </div>
 
                                     {/* Items list */}
-                                    <div className="flex-1 overflow-y-auto">
+                                    <div className="flex-1 min-h-0 overflow-y-auto pb-1">
                                         {items.length === 0 ? (
                                             <div className={[
                                                 'h-full flex items-center justify-center text-xs text-muted-foreground p-4 text-center transition-colors',
@@ -483,7 +496,7 @@ export default function BoxesPage() {
                                                 {dragOverBoxId === box.id ? 'Drop here' : 'Empty box'}
                                             </div>
                                         ) : (
-                                            <div className="divide-y divide-border/50">
+                                            <div className="divide-y divide-border/50 pb-1">
                                                 {items.map(item => {
                                                     const isItemFlashing = flashingItemId === item.id
                                                     const isDraggingThis = dragging?.itemId === item.id
@@ -517,7 +530,8 @@ export default function BoxesPage() {
                                                                         </p>
                                                                     )}
                                                                 </div>
-                                                                <span className="text-xs font-medium text-slate-300 flex-shrink-0 bg-secondary/60 px-1.5 py-0.5 rounded">
+                                                                <span
+                                                                    className="text-xs font-medium text-slate-300 flex-shrink-0 bg-secondary/60 px-1.5 py-0.5 rounded">
                                                                     ×{item.quantity}
                                                                 </span>
                                                             </div>
