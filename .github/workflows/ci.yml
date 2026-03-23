@@ -107,6 +107,11 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
+      - name: Inspect builder
+        run: docker buildx inspect --bootstrap
 
       - name: Extract Docker metadata
         id: meta
@@ -122,7 +127,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./backend
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          provenance: false
+          sbom: false
+          outputs: type=registry
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
