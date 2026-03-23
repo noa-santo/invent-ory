@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.4](https://github.com/noa-santo/invent-ory/compare/v0.1.3...v0.1.4) (2026-03-23)
+
+
+### Features
+
+* enhance CI configuration for multi-platform Docker builds ([476ef07](https://github.com/noa-santo/invent-ory/commit/476ef0766d0518fbc9ad8b6d3cc6ae3df00288eb))
+
+
+### Bug Fixes
+
+* **ci:** fix multi arch release ([a27340b](https://github.com/noa-santo/invent-ory/commit/a27340bc57ab06c745f6a8a94615a00e3fea8c9e))
+
 ## [0.1.3](https://github.com/noa-santo/invent-ory/compare/v0.1.2...v0.1.3) (2026-03-22)
 
 
